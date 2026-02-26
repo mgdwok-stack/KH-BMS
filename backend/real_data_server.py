@@ -18,6 +18,7 @@ from sqlalchemy import create_engine, func, desc
 from sqlalchemy.orm import sessionmaker
 from app.config import settings
 from app.models.database import BidAnnouncement, BidResult, Prediction
+from app.routes.excel_routes import router as excel_router
 
 # Database setup
 engine = create_engine(settings.DATABASE_URL)
@@ -37,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(excel_router)
 
 # Response Models
 class BidAnnouncementResponse(BaseModel):

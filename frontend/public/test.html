@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Test</title>
+</head>
+<body>
+    <h1>Testing API Calls</h1>
+    <div id="results"></div>
+    
+    <script>
+        const API_BASE_URL = 'https://8000-ibl1wp19duywhz06v6jkp-5c13a017.sandbox.novita.ai';
+        
+        async function testInstitutionAPI() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/analytics/institution`);
+                const data = await response.json();
+                
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <h2>✅ 발주기관별 통계 API 응답 성공!</h2>
+                    <p>총 기관 수: ${data.institutions.length}개</p>
+                    <h3>상위 10개 기관:</h3>
+                    <ul>
+                        ${data.institutions.slice(0, 10).map(inst => `
+                            <li><strong>${inst.institution}</strong>: ${inst.count}건, ${inst.avg_basis_prc_display}, ${inst.avg_prdprc_rate}%</li>
+                        `).join('')}
+                    </ul>
+                `;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `
+                    <h2>❌ 오류 발생</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+        
+        testInstitutionAPI();
+    </script>
+</body>
+</html>
