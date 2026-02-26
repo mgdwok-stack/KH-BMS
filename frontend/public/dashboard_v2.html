@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bid-Bot Clone - 발주기관별 데이터</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background-color: #f7fafc; color: #2d3748; font-weight: 600; }
+        tr:hover { background-color: #f7fafc; }
+        .highlight { background-color: #fff5f5 !important; }
+        .star { color: #c53030; font-weight: bold; }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            background: #c6f6d5;
+            color: #22543d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Bid-Bot Clone</h1>
+            <p>발주기관별 낙찰정보 대시보드</p>
+        </div>
+        
+        <div class="section">
+            <h2 style="margin-bottom: 20px;">🏛️ 발주기관별 낙찰정보</h2>
+            <p style="color: #718096; margin-bottom: 20px;">
+                ⭐ 표시는 한국전력공사 등 토목/건설 관련 주요 발주기관입니다
+            </p>
+            <div id="loading">데이터를 불러오는 중...</div>
+            <div id="error" style="display: none; color: red;"></div>
+            <table id="institution-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>발주기관</th>
+                        <th>공고 수</th>
+                        <th>평균 기초금액</th>
+                        <th>평균 낙찰율</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'https://8000-ibl1wp19duywhz06v6jkp-5c13a017.sandbox.novita.ai/api/v1/analytics/institution';
+        
+        const majorKeywords = ['한국전력', '한국도로', '한국철도', '한국토지', '한국수자원', 
+                              '국토교통', '한국석유', '한국가스', '산림청', '도시공사', '농어촌공사'];
+        
+        async function loadData() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                const tbody = document.getElementById('tbody');
+                
+                tbody.innerHTML = data.institutions.map(inst => {
+                    const isMajor = majorKeywords.some(kw => inst.institution.includes(kw));
+                    return `
+                        <tr class="${isMajor ? 'highlight' : ''}">
+                            <td>${isMajor ? '<span class="star">⭐ </span>' : ''}<strong>${inst.institution}</strong></td>
+                            <td>${inst.count}건</td>
+                            <td>${inst.avg_basis_prc_display}</td>
+                            <td><span class="badge">${inst.avg_prdprc_rate.toFixed(2)}%</span></td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('institution-table').style.display = 'table';
+                
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = '오류: ' + error.message;
+            }
+        }
+        
+        loadData();
+    </script>
+</body>
+</html>
