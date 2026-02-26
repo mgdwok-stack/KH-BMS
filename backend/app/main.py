@@ -110,10 +110,12 @@ async def internal_error_handler(request, exc):
     )
 
 
-# Import and include routers (will be implemented in next steps)
-# from .api import bids, predictions
-# app.include_router(bids.router, prefix="/api/v1/bids", tags=["bids"])
-# app.include_router(predictions.router, prefix="/api/v1/predictions", tags=["predictions"])
+# Import and include routers
+from .api import bids_router, predictions_router, analytics_router
+
+app.include_router(bids_router, prefix="/api/v1/bids", tags=["입찰공고"])
+app.include_router(predictions_router, prefix="/api/v1/predictions", tags=["AI 예측"])
+app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["분석 및 통계"])
 
 
 if __name__ == "__main__":
