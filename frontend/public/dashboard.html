@@ -492,6 +492,7 @@
                 await loadBids();
                 await loadRegionalStats();
                 await loadIndustryStats();
+                await loadInstitutionStats();  // 발주기관별 통계 추가!
                 hideLoading();
             } catch (error) {
                 showError('데이터를 불러오는 중 오류가 발생했습니다: ' + error.message);
