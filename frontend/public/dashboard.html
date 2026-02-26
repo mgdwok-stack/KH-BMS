@@ -282,6 +282,28 @@
                 </table>
             </div>
         </div>
+
+        <!-- Institution Stats (NEW!) -->
+        <div id="institution-stats-section" class="data-section" style="display: none;">
+            <h2>🏛️ 발주기관별 낙찰정보</h2>
+            <p style="color: #718096; margin-bottom: 20px;">
+                한국전력공사, 한국도로공사 등 주요 공공기관의 입찰 및 낙찰 통계
+            </p>
+            <div class="table-container">
+                <table id="institution-table">
+                    <thead>
+                        <tr>
+                            <th>발주기관</th>
+                            <th>공고 수</th>
+                            <th>평균 기초금액</th>
+                            <th>평균 사정률</th>
+                            <th>주요 업종</th>
+                        </tr>
+                    </thead>
+                    <tbody id="institution-tbody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -413,6 +435,45 @@
                 document.getElementById('industry-stats-section').style.display = 'block';
             } catch (error) {
                 showError('업종별 통계를 불러올 수 없습니다: ' + error.message);
+            }
+        }
+
+        async function loadInstitutionStats() {
+            try {
+                const data = await fetchAPI('/api/v1/analytics/institution');
+                
+                // 토목/건설 관련 주요 기관 강조
+                const majorInstitutions = [
+                    '한국전력공사', '한국도로공사', '한국철도공사', 
+                    '한국수자원공사', '한국토지주택공사', 
+                    '국토교통부', '행정안전부', '환경부'
+                ];
+                
+                const tbody = document.getElementById('institution-tbody');
+                tbody.innerHTML = data.institutions.map((inst, index) => {
+                    const isMajor = majorInstitutions.some(major => inst.institution.includes(major));
+                    const rowClass = isMajor ? 'style="background-color: #fff5f5;"' : '';
+                    const institutionDisplay = isMajor 
+                        ? `<strong style="color: #c53030;">⭐ ${inst.institution}</strong>`
+                        : `<strong>${inst.institution}</strong>`;
+                    
+                    // 주요 업종 표시 (임시로 '토목/건설' 표시)
+                    const mainIndustry = isMajor ? '토목/건설 위주' : '다양';
+                    
+                    return `
+                        <tr ${rowClass}>
+                            <td>${institutionDisplay}</td>
+                            <td>${inst.count}건</td>
+                            <td>${inst.avg_basis_prc_display}</td>
+                            <td><span class="badge badge-info">${inst.avg_prdprc_rate}%</span></td>
+                            <td><span class="badge badge-success">${mainIndustry}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+
+                document.getElementById('institution-stats-section').style.display = 'block';
+            } catch (error) {
+                showError('발주기관별 통계를 불러올 수 없습니다: ' + error.message);
             }
         }
 
