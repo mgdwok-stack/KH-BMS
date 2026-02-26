@@ -2,14 +2,12 @@
 Configuration Management
 """
 import os
-from typing import List
-from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-class Settings(BaseSettings):
+class Settings:
     # Application Settings
     APP_NAME: str = os.getenv("APP_NAME", "Bid-Bot Clone")
     APP_VERSION: str = os.getenv("APP_VERSION", "1.0.0")
@@ -33,17 +31,20 @@ class Settings(BaseSettings):
     )
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:3000,http://localhost:5173"
-    ).split(",")
+    ALLOWED_ORIGINS: list = [
+        origin.strip() 
+        for origin in os.getenv(
+            "ALLOWED_ORIGINS",
+            "http://localhost:3000,http://localhost:5173"
+        ).split(",")
+    ]
     
     # ML Models
     MODEL_PATH: str = os.getenv("MODEL_PATH", "./models")
     DNBP_MODEL_PATH: str = os.getenv("DNBP_MODEL_PATH", "./models/dnbp_model.h5")
     LSTM_MODEL_PATH: str = os.getenv("LSTM_MODEL_PATH", "./models/lstm_model.h5")
-    ENSEMBLE_WEIGHTS: List[float] = [
-        float(w) for w in os.getenv("ENSEMBLE_WEIGHTS", "0.6,0.4").split(",")
+    ENSEMBLE_WEIGHTS: list = [
+        float(w.strip()) for w in os.getenv("ENSEMBLE_WEIGHTS", "0.6,0.4").split(",")
     ]
     
     # Data Collection
@@ -58,9 +59,6 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = os.getenv("LOG_FILE", "./logs/app.log")
-
-    class Config:
-        case_sensitive = True
 
 
 settings = Settings()
