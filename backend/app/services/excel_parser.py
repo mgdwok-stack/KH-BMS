@@ -1,6 +1,7 @@
 """
 Excel Parser Service
 Parses bid simulation Excel files uploaded by users.
+Updated to handle real bid file format.
 """
 import pandas as pd
 import numpy as np
@@ -70,36 +71,62 @@ class ExcelParser:
     def extract_metadata(self):
         """
         Extract basic metadata from the Excel file.
-        Expected format:
-        - 발주처: [value]
-        - 공사명: [value]
-        - 추정가격: [value]
-        - 예가범위: 97% ~ 103%
+        Real format:
+        Row 1: 건명 (col 0) | ... | 공사명 (col 2) | ... | 기초금액 (col 9) | value (col 10)
+        Row 2: 발주처 (col 0) | ... | 발주처명 (col 2) | ... | 추정가격 (col 9) | value (col 10)
         """
         metadata = {}
         
-        # Try to find metadata in first few rows
-        for idx in range(min(20, len(self.df))):
-            row = self.df.iloc[idx]
-            row_str = ' '.join([str(cell) for cell in row if pd.notna(cell)])
+        # Row 1: 건명 and 기초금액
+        if len(self.df) > 1:
+            row1 = self.df.iloc[1]
+            # 건명 (Project Name) at column 2
+            if pd.notna(row1.iloc[2]):
+                project_name = str(row1.iloc[2]).strip()
+                if len(project_name) > 3:
+                    metadata['project_name'] = project_name
             
-            # 발주처 (Ordering Agency)
-            if '발주처' in row_str or '발주기관' in row_str:
-                metadata['ordering_agency'] = self._extract_value_after_keyword(row_str, ['발주처', '발주기관'])
+            # 기초금액 at column 10
+            if len(row1) > 10 and pd.notna(row1.iloc[10]):
+                try:
+                    base_price = float(row1.iloc[10])
+                    if base_price > 100000:
+                        metadata['base_price'] = base_price
+                except:
+                    pass
+        
+        # Row 2: 발주처 and 추정가격
+        if len(self.df) > 2:
+            row2 = self.df.iloc[2]
+            # 발주처 (Ordering Agency) at column 2
+            if pd.notna(row2.iloc[2]):
+                ordering_agency = str(row2.iloc[2]).strip()
+                if len(ordering_agency) > 1:
+                    metadata['ordering_agency'] = ordering_agency
             
-            # 공사명 (Project Name)
-            if '공사명' in row_str or '사업명' in row_str:
-                metadata['project_name'] = self._extract_value_after_keyword(row_str, ['공사명', '사업명'])
+            # 추정가격 at column 10
+            if len(row2) > 10 and pd.notna(row2.iloc[10]):
+                try:
+                    estimated_price = float(row2.iloc[10])
+                    if estimated_price > 100000:
+                        metadata['estimated_price'] = estimated_price
+                except:
+                    pass
             
-            # 추정가격 (Estimated Price)
-            if '추정가격' in row_str or '기초금액' in row_str:
-                price_str = self._extract_value_after_keyword(row_str, ['추정가격', '기초금액'])
-                metadata['estimated_price'] = self._parse_price(price_str)
-            
-            # 예가범위 (Price Range)
-            if '예가범위' in row_str or '예정가격범위' in row_str:
-                range_str = self._extract_value_after_keyword(row_str, ['예가범위', '예정가격범위'])
-                metadata['price_range'] = self._parse_price_range(range_str)
+            # 예가범위 at column 12
+            if len(row2) > 12 and pd.notna(row2.iloc[12]):
+                range_str = str(row2.iloc[12])
+                if '~' in range_str or '～' in range_str:
+                    # Parse "97% ~ 103%"
+                    percentages = re.findall(r'(\d+\.?\d*)%', range_str)
+                    if len(percentages) >= 2:
+                        try:
+                            metadata['price_range'] = {
+                                'min': float(percentages[0]),
+                                'max': float(percentages[1])
+                            }
+                        except:
+                            pass
         
         # Default values if not found
         metadata.setdefault('ordering_agency', 'Unknown')
@@ -112,36 +139,90 @@ class ExcelParser:
     def extract_companies(self):
         """
         Extract participating company information.
-        Expected format in rows:
-        순번 | 업체명 | 환산점수 합계 | 투찰가능 상한 | 투찰가능 하한
+        Real format:
+        Row 4: 항만부 (col 0) | ... | 1.업체1 (col 4) | 2.업체2 (col 5) | 3.업체3 (col 6) | ...
+        Row 9: 환산점수 합계 | ... | 점수1 (col 4) | 점수2 (col 5) | 점수3 (col 6) | ...
+        Row 10-11: 투찰범위 하한선/상한선
         """
         companies = []
         
-        # Find the row that contains company headers
-        company_header_row = None
-        for idx in range(len(self.df)):
-            row = self.df.iloc[idx]
-            row_str = ' '.join([str(cell) for cell in row if pd.notna(cell)])
-            
-            if '업체' in row_str and ('환산점수' in row_str or '합계' in row_str):
-                company_header_row = idx
-                break
+        # Row 4 contains company names starting from column 4
+        company_row_idx = None
+        score_row_idx = None
+        lower_bound_row_idx = None
+        upper_bound_row_idx = None
         
-        if company_header_row is not None:
-            # Parse company data starting from the next row
-            for idx in range(company_header_row + 1, len(self.df)):
-                row = self.df.iloc[idx]
-                
-                # Stop if we hit an empty row or next section
-                if pd.isna(row.iloc[0]) or str(row.iloc[0]).strip() == '':
-                    break
-                
-                # Check if this looks like a company row (starts with number or company name)
-                first_cell = str(row.iloc[0]).strip()
-                if first_cell and (first_cell.isdigit() or len(first_cell) > 2):
-                    company_info = self._parse_company_row(row)
-                    if company_info:
-                        companies.append(company_info)
+        # Find specific rows
+        for idx in range(min(15, len(self.df))):
+            row = self.df.iloc[idx]
+            first_cell = str(row.iloc[0]) if pd.notna(row.iloc[0]) else ""
+            
+            # Row 4: 항만부/토목부 + company names
+            if '항만부' in first_cell or '토목부' in first_cell or '건축부' in first_cell:
+                company_row_idx = idx
+            
+            # Row 9: 환산점수 합계
+            if '환산점수' in first_cell and '합계' in first_cell:
+                score_row_idx = idx
+            
+            # Row 10: 투찰범위 - 하한선
+            if '투' in first_cell and '찰' in first_cell and '범' in first_cell:
+                # Next row should be 하한선
+                if idx + 1 < len(self.df):
+                    next_cell = str(self.df.iloc[idx + 1, 0]) if pd.notna(self.df.iloc[idx + 1, 0]) else ""
+                    if '하한' in next_cell:
+                        lower_bound_row_idx = idx + 1
+                        upper_bound_row_idx = idx + 2
+        
+        # Extract company data starting from column 4
+        if company_row_idx is not None and len(self.df) > company_row_idx:
+            company_row = self.df.iloc[company_row_idx]
+            
+            # Companies start from column 4
+            for col_idx in range(4, len(company_row)):
+                cell = company_row.iloc[col_idx]
+                if pd.notna(cell):
+                    company_name = str(cell).strip()
+                    # Valid company name: at least 2 chars, starts with number or contains company identifier
+                    if len(company_name) >= 2:
+                        # Skip non-company cells
+                        if company_name.replace('.', '').replace('-', '').replace('%', '').replace('(', '').replace(')', '').isdigit():
+                            continue
+                        if '점수' in company_name or '합계' in company_name:
+                            continue
+                        
+                        company_info = {'name': company_name}
+                        
+                        # Extract score
+                        if score_row_idx is not None and col_idx < len(self.df.iloc[score_row_idx]):
+                            score = self.df.iloc[score_row_idx, col_idx]
+                            if pd.notna(score):
+                                try:
+                                    company_info['total_score'] = float(score)
+                                except:
+                                    pass
+                        
+                        # Extract lower bound
+                        if lower_bound_row_idx is not None and col_idx < len(self.df.iloc[lower_bound_row_idx]):
+                            lower = self.df.iloc[lower_bound_row_idx, col_idx]
+                            if pd.notna(lower):
+                                try:
+                                    company_info['bid_lower_limit'] = float(lower)
+                                except:
+                                    pass
+                        
+                        # Extract upper bound
+                        if upper_bound_row_idx is not None and col_idx < len(self.df.iloc[upper_bound_row_idx]):
+                            upper = self.df.iloc[upper_bound_row_idx, col_idx]
+                            if pd.notna(upper):
+                                try:
+                                    company_info['bid_upper_limit'] = float(upper)
+                                except:
+                                    pass
+                        
+                        # Only add if it has at least a score
+                        if 'total_score' in company_info:
+                            companies.append(company_info)
         
         self.companies = companies
     
@@ -150,81 +231,84 @@ class ExcelParser:
         Extract the simulation matrix showing bid amounts for each company
         at different expected price rates.
         
-        Expected format:
-        예가율 | 예정가격 | 업체1 | 업체2 | ... | 업체N
-        97.0%  | XXX     | YYY   | ZZZ   | ... | AAA
-        97.1%  | XXX     | YYY   | ZZZ   | ... | AAA
-        ...
+        Real format:
+        Row 16: 예가율(%) | 예정가격 | 투찰범위 (header)
+        Row 17+: 103 | (empty or value) | company1_bid | company2_bid | ...
+        Note: Column 1 (예정가격) might be empty, column 2+ are company bids
         """
         matrix_data = []
         
-        # Find the row that contains simulation matrix headers
-        matrix_header_row = None
+        # Find simulation matrix header row
+        matrix_start_row = None
         for idx in range(len(self.df)):
             row = self.df.iloc[idx]
-            row_str = ' '.join([str(cell) for cell in row if pd.notna(cell)])
+            first_cell = str(row.iloc[0]) if pd.notna(row.iloc[0]) else ""
             
-            if '예가율' in row_str and '예정가격' in row_str:
-                matrix_header_row = idx
+            if '예가율' in first_cell:
+                matrix_start_row = idx + 1  # Data starts next row
                 break
         
-        if matrix_header_row is not None:
-            # Get headers
-            headers = []
-            header_row = self.df.iloc[matrix_header_row]
-            for cell in header_row:
-                if pd.notna(cell):
-                    headers.append(str(cell).strip())
+        if matrix_start_row is None:
+            self.simulation_matrix = []
+            return
+        
+        # Get company names from companies list
+        company_names = [c['name'] for c in self.companies if 'total_score' in c]
+        
+        # Extract matrix data
+        for idx in range(matrix_start_row, len(self.df)):
+            row = self.df.iloc[idx]
             
-            # Parse matrix data
-            for idx in range(matrix_header_row + 1, len(self.df)):
-                row = self.df.iloc[idx]
-                
-                # Stop if empty row
-                if pd.isna(row.iloc[0]):
-                    break
-                
-                # Parse row data
-                row_data = {}
-                first_cell = str(row.iloc[0]).strip()
-                
-                # Check if this is a valid data row (starts with percentage like 97.0%)
-                if '%' in first_cell or self._is_percentage_value(first_cell):
-                    rate = self._parse_percentage(first_cell)
-                    if rate:
-                        row_data['rate'] = rate
-                        
-                        # Extract predicted price and company bids
-                        for col_idx, header in enumerate(headers):
-                            if col_idx < len(row):
-                                value = row.iloc[col_idx]
-                                if pd.notna(value):
-                                    if '예정가격' in header:
-                                        row_data['predicted_price'] = self._parse_price(str(value))
-                                    elif col_idx > 1:  # Company columns
-                                        company_name = header
-                                        bid_amount = self._parse_price(str(value))
-                                        if 'companies' not in row_data:
-                                            row_data['companies'] = {}
-                                        row_data['companies'][company_name] = bid_amount
-                        
-                        matrix_data.append(row_data)
+            # First column should be rate (percentage)
+            rate_cell = row.iloc[0]
+            if pd.isna(rate_cell):
+                break
+            
+            rate = self._parse_percentage(str(rate_cell))
+            if rate is None or rate < 95 or rate > 105:
+                break
+            
+            # Calculate predicted price from rate and estimated price
+            estimated_price = self.metadata.get('estimated_price', 0)
+            predicted_price = 0
+            if estimated_price > 0 and rate:
+                predicted_price = int(estimated_price * rate / 100)
+            
+            # Remaining columns are company bids
+            row_data = {
+                'rate': rate,
+                'predicted_price': predicted_price,
+                'companies': {}
+            }
+            
+            # Extract company bids
+            # Companies start from column 2 or 4 depending on format
+            # Try to find first numeric column after rate
+            start_col = 2
+            for test_col in range(2, min(6, len(row))):
+                if pd.notna(row.iloc[test_col]):
+                    try:
+                        val = float(row.iloc[test_col])
+                        if val > 100000:  # Looks like a bid amount
+                            start_col = test_col
+                            break
+                    except:
+                        pass
+            
+            for col_idx in range(start_col, len(row)):
+                if col_idx - start_col < len(company_names) and pd.notna(row.iloc[col_idx]):
+                    company_name = company_names[col_idx - start_col]
+                    try:
+                        bid_amount = float(row.iloc[col_idx])
+                        if bid_amount > 0:
+                            row_data['companies'][company_name] = bid_amount
+                    except:
+                        pass
+            
+            if len(row_data['companies']) > 0:
+                matrix_data.append(row_data)
         
         self.simulation_matrix = matrix_data
-    
-    def _extract_value_after_keyword(self, text: str, keywords: List[str]) -> str:
-        """Extract value after a keyword."""
-        for keyword in keywords:
-            if keyword in text:
-                parts = text.split(keyword)
-                if len(parts) > 1:
-                    value = parts[1].strip()
-                    # Remove common separators
-                    value = value.lstrip(':：').strip()
-                    # Take first part before any newline or tab
-                    value = value.split()[0] if value.split() else ''
-                    return value
-        return ''
     
     def _parse_price(self, price_str: str) -> float:
         """Parse price string to float."""
@@ -251,64 +335,6 @@ class ExcelParser:
             return None
         except:
             return None
-    
-    def _parse_price_range(self, range_str: str) -> Dict[str, float]:
-        """Parse price range string like '97% ~ 103%'."""
-        try:
-            # Extract percentages
-            percentages = re.findall(r'[\d.]+', range_str)
-            if len(percentages) >= 2:
-                return {
-                    'min': float(percentages[0]),
-                    'max': float(percentages[1])
-                }
-            return {'min': 97.0, 'max': 103.0}
-        except:
-            return {'min': 97.0, 'max': 103.0}
-    
-    def _parse_company_row(self, row) -> Optional[Dict[str, Any]]:
-        """Parse a company information row."""
-        try:
-            company_info = {}
-            
-            # Expected columns: 순번, 업체명, 환산점수 합계, 상한, 하한
-            # Adjust indices based on actual file structure
-            
-            # Get company name (usually in column 1 or 2)
-            for idx in range(min(3, len(row))):
-                cell = str(row.iloc[idx]).strip()
-                if cell and not cell.isdigit() and len(cell) > 1:
-                    company_info['name'] = cell
-                    break
-            
-            if 'name' not in company_info:
-                return None
-            
-            # Try to extract score and bid range
-            numeric_values = []
-            for cell in row:
-                if pd.notna(cell):
-                    parsed = self._parse_price(str(cell))
-                    if parsed > 0:
-                        numeric_values.append(parsed)
-            
-            if len(numeric_values) >= 3:
-                company_info['total_score'] = numeric_values[0]
-                company_info['bid_upper_limit'] = numeric_values[1]
-                company_info['bid_lower_limit'] = numeric_values[2]
-            
-            return company_info
-        except:
-            return None
-    
-    def _is_percentage_value(self, value: str) -> bool:
-        """Check if a string looks like a percentage value."""
-        try:
-            # Check if it's a number between 95 and 105
-            num = float(value)
-            return 95.0 <= num <= 105.0
-        except:
-            return False
 
 
 def parse_excel_file(file_path: str) -> Dict[str, Any]:
