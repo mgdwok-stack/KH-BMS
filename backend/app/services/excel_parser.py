@@ -142,39 +142,50 @@ class ExcelParser:
         Extract participating company information.
         Real format:
         Row 4: 항만부 (col 0) | ... | 1.업체1 (col 4) | 2.업체2 (col 5) | 3.업체3 (col 6) | ...
+        Row 5: 100점만점 점수 (optional)
         Row 9: 환산점수 합계 | ... | 점수1 (col 4) | 점수2 (col 5) | 점수3 (col 6) | ...
-        Row 10-11: 투찰범위 하한선/상한선
+        Row 10-11: 투찰범위 하한선(%)/상한선(%)
         """
         companies = []
         company_columns = []  # Store column indices where companies are found
         
-        # Row 4 contains company names starting from column 4
+        # Row indices to find
         company_row_idx = None
-        score_row_idx = None
+        score_100_row_idx = None  # 100점만점 점수
+        score_row_idx = None      # 환산점수 합계
         lower_bound_row_idx = None
         upper_bound_row_idx = None
         
         # Find specific rows
-        for idx in range(min(15, len(self.df))):
+        for idx in range(min(20, len(self.df))):
             row = self.df.iloc[idx]
             first_cell = str(row.iloc[0]) if pd.notna(row.iloc[0]) else ""
+            second_cell = str(row.iloc[1]) if len(row) > 1 and pd.notna(row.iloc[1]) else ""
             
-            # Row 4: 항만부/토목부 + company names
-            if '항만부' in first_cell or '토목부' in first_cell or '건축부' in first_cell:
+            # Row 4: 항만부/토목부/건설사업관리본부 + company names
+            if any(keyword in first_cell for keyword in ['항만부', '토목부', '건축부', '건설사업관리']):
                 company_row_idx = idx
+            
+            # Row 5: 100점만점 점수
+            if '100점만점' in first_cell or '100점만점' in second_cell:
+                score_100_row_idx = idx
             
             # Row 9: 환산점수 합계
             if '환산점수' in first_cell and '합계' in first_cell:
                 score_row_idx = idx
             
-            # Row 10: 투찰범위 - 하한선
+            # Row 10: 투찰범위 - 하한선(%)
             if '투' in first_cell and '찰' in first_cell and '범' in first_cell:
-                # Next row should be 하한선
-                if idx + 1 < len(self.df):
-                    next_cell = str(self.df.iloc[idx + 1, 0]) if pd.notna(self.df.iloc[idx + 1, 0]) else ""
-                    if '하한' in next_cell:
-                        lower_bound_row_idx = idx + 1
-                        upper_bound_row_idx = idx + 2
+                # Check if Row 2 has "하한선(%)"
+                if len(self.df) > idx:
+                    second_col = str(self.df.iloc[idx, 2]) if len(self.df.iloc[idx]) > 2 and pd.notna(self.df.iloc[idx, 2]) else ""
+                    if '하한' in second_col:
+                        lower_bound_row_idx = idx
+                        # Check next row for 상한선(%)
+                        if idx + 1 < len(self.df):
+                            next_second_col = str(self.df.iloc[idx + 1, 2]) if len(self.df.iloc[idx + 1]) > 2 and pd.notna(self.df.iloc[idx + 1, 2]) else ""
+                            if '상한' in next_second_col:
+                                upper_bound_row_idx = idx + 1
         
         # Extract company data starting from column 4
         if company_row_idx is not None and len(self.df) > company_row_idx:
@@ -203,7 +214,16 @@ class ExcelParser:
                             'column_index': col_idx  # Store column index for simulation matrix
                         }
                         
-                        # Extract score
+                        # Extract 100점만점 점수 (preferred if available)
+                        if score_100_row_idx is not None and col_idx < len(self.df.iloc[score_100_row_idx]):
+                            score_100 = self.df.iloc[score_100_row_idx, col_idx]
+                            if pd.notna(score_100):
+                                try:
+                                    company_info['score_100'] = float(score_100)
+                                except:
+                                    pass
+                        
+                        # Extract 환산점수 (fallback)
                         if score_row_idx is not None and col_idx < len(self.df.iloc[score_row_idx]):
                             score = self.df.iloc[score_row_idx, col_idx]
                             if pd.notna(score):
@@ -212,26 +232,26 @@ class ExcelParser:
                                 except:
                                     pass
                         
-                        # Extract lower bound
+                        # Extract lower bound (%)
                         if lower_bound_row_idx is not None and col_idx < len(self.df.iloc[lower_bound_row_idx]):
                             lower = self.df.iloc[lower_bound_row_idx, col_idx]
                             if pd.notna(lower):
                                 try:
-                                    company_info['bid_lower_limit'] = float(lower)
+                                    company_info['bid_lower_limit_pct'] = float(lower)
                                 except:
                                     pass
                         
-                        # Extract upper bound
+                        # Extract upper bound (%)
                         if upper_bound_row_idx is not None and col_idx < len(self.df.iloc[upper_bound_row_idx]):
                             upper = self.df.iloc[upper_bound_row_idx, col_idx]
                             if pd.notna(upper):
                                 try:
-                                    company_info['bid_upper_limit'] = float(upper)
+                                    company_info['bid_upper_limit_pct'] = float(upper)
                                 except:
                                     pass
                         
                         # Only add if it has at least a score
-                        if 'total_score' in company_info:
+                        if 'total_score' in company_info or 'score_100' in company_info:
                             companies.append(company_info)
                             company_columns.append(col_idx)
         

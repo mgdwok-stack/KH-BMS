@@ -324,9 +324,9 @@
                         <tr>
                             <th>순번</th>
                             <th>업체명</th>
-                            <th>환산점수</th>
-                            <th>투찰가능 상한</th>
-                            <th>투찰가능 하한</th>
+                            <th>100점만점 점수</th>
+                            <th>투찰범위 하한선(%)</th>
+                            <th>투찰범위 상한선(%)</th>
                         </tr>
                     </thead>
                     <tbody id="companiesTbody"></tbody>
@@ -465,15 +465,22 @@
             if (!companies || companies.length === 0) return;
 
             const tbody = document.getElementById('companiesTbody');
-            tbody.innerHTML = companies.map((company, idx) => `
-                <tr>
-                    <td>${idx + 1}</td>
-                    <td><strong>${company.name}</strong></td>
-                    <td>${company.total_score || '-'}</td>
-                    <td>${formatNumber(company.bid_upper_limit) || '-'}</td>
-                    <td>${formatNumber(company.bid_lower_limit) || '-'}</td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = companies.map((company, idx) => {
+                // Prefer score_100 over total_score
+                const score = company.score_100 || company.total_score || '-';
+                const lowerPct = company.bid_lower_limit_pct ? company.bid_lower_limit_pct.toFixed(2) + '%' : '-';
+                const upperPct = company.bid_upper_limit_pct ? company.bid_upper_limit_pct.toFixed(2) + '%' : '-';
+                
+                return `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td><strong>${company.name}</strong></td>
+                        <td>${score}</td>
+                        <td>${lowerPct}</td>
+                        <td>${upperPct}</td>
+                    </tr>
+                `;
+            }).join('');
 
             const stats = document.getElementById('companiesStats');
             stats.innerHTML = `
