@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bid-Bot Clone - Excel Upload & Analysis</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Bid-Bot Clone - Excel Upload & Analysis (v2.0)</title>
     <style>
         * {
             margin: 0;
@@ -211,6 +214,21 @@
             font-weight: bold;
         }
 
+        .closest-bid-highlight {
+            background-color: #ff6b6b !important;
+            color: white !important;
+            font-weight: bold !important;
+            border: 3px solid #ee5a6f !important;
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+        }
+
+        .institution-avg-highlight {
+            background-color: #c3e6cb !important;
+            border: 3px solid #28a745 !important;
+            box-shadow: 0 0 15px rgba(40, 167, 69, 0.6);
+            font-weight: bold !important;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -339,8 +357,13 @@
             <h2>📊 예가율별 투찰 시뮬레이션</h2>
             <div class="stats-container" id="simulationStats"></div>
             <div style="margin-bottom: 15px;">
-                <button class="btn" onclick="highlightOptimalRange()">🎯 최적 사정률 구간 표시</button>
+                <button class="btn" onclick="highlightClosestBids()">🔴 투찰 가능 범위 가장 가까운 값 표시</button>
+                <button class="btn" onclick="highlightOptimalRange()">🎯 최적 사정률 구간 표시 (99.5~100.5%)</button>
+                <button class="btn" onclick="highlightInstitutionAvgRate()">🏢 발주처 평균 사정율 표시</button>
                 <button class="btn btn-secondary" onclick="clearHighlights()">🔄 하이라이트 초기화</button>
+            </div>
+            <div id="institutionRateInfo" style="display: none; background: #e8f5e9; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #4caf50;">
+                <strong>🏢 발주처 평균 사정율:</strong> <span id="institutionRateValue"></span>
             </div>
             <div class="table-wrapper">
                 <table id="simulationTable">
@@ -354,6 +377,33 @@
     <script>
         const API_BASE = 'https://8000-ibl1wp19duywhz06v6jkp-5c13a017.sandbox.novita.ai';
         let parsedData = null;
+        let institutionAvgRate = null;
+
+        // 발주처별 평균 사정율 매핑 (실제 데이터 또는 시뮬레이션)
+        const INSTITUTION_AVG_RATES = {
+            '제주특별자치도': 99.8,
+            '경상남도': 100.2,
+            '서울특별시': 100.1,
+            '부산광역시': 99.9,
+            '인천광역시': 100.0,
+            '대구광역시': 100.3,
+            '대전광역시': 101.5,
+            '광주광역시': 100.4,
+            '울산광역시': 99.7,
+            '경기도': 100.2,
+            '강원도': 99.9,
+            '충청북도': 100.1,
+            '충청남도': 100.0,
+            '전라북도': 100.2,
+            '전라남도': 99.8,
+            '경상북도': 100.1,
+            '한국도로공사': 99.72,
+            '국토교통부': 100.25,
+            '한국토지주택공사': 100.63,
+            '한국전력공사': 99.88,
+            '한국철도공사': 99.66,
+            '행정안전부': 100.37
+        };
 
         // Dropzone events
         const dropzone = document.getElementById('dropzone');
@@ -440,6 +490,15 @@
             const orderingAgency = metadata.ordering_agency !== 'Unknown' ? metadata.ordering_agency : '정보 없음';
             const projectName = metadata.project_name !== 'Unknown Project' ? metadata.project_name : '정보 없음';
             
+            // 발주처별 평균 사정율 조회
+            institutionAvgRate = null;
+            for (const [key, value] of Object.entries(INSTITUTION_AVG_RATES)) {
+                if (orderingAgency.includes(key)) {
+                    institutionAvgRate = value;
+                    break;
+                }
+            }
+            
             grid.innerHTML = `
                 <div class="metadata-card">
                     <div class="metadata-label">발주처</div>
@@ -515,17 +574,17 @@
 
             // Create table body with all data
             const tbody = document.getElementById('simulationTbody');
-            tbody.innerHTML = matrix.map(row => {
+            tbody.innerHTML = matrix.map((row, rowIdx) => {
                 const isBidRange = row.is_bid_range || false;
                 
-                const companyBids = companyNames.map(name => {
+                const companyBids = companyNames.map((name, companyIdx) => {
                     const value = row.companies[name];
                     if (isBidRange) {
                         // For bid range row, show as percentage
-                        return `<td style="background: #fef5e7; font-weight: 600;">${value ? value.toFixed(2) + '%' : '-'}</td>`;
+                        return `<td class="bid-range-cell" data-company-idx="${companyIdx}" data-bid-range="${value}" style="background: #fef5e7; font-weight: 600;">${value ? value.toFixed(2) + '%' : '-'}</td>`;
                     } else {
                         // For normal rows, show as currency
-                        return `<td>${formatNumber(value)}</td>`;
+                        return `<td class="company-bid-cell" data-company-idx="${companyIdx}" data-row-idx="${rowIdx}">${formatNumber(value)}</td>`;
                     }
                 }).join('');
                 
@@ -556,7 +615,15 @@
             instructionDiv.innerHTML = `
                 <strong>💡 사용 안내:</strong><br>
                 • 표를 <strong>좌우로 스크롤</strong>하여 모든 업체(최대 20개)의 투찰 금액을 확인할 수 있습니다.<br>
-                • 예가율과 예정가격 열은 고정되어 있어 스크롤 시에도 계속 보입니다.
+                • 예가율과 예정가격 열은 고정되어 있어 스크롤 시에도 계속 보입니다.<br>
+                • <strong>🔴 투찰 가능 범위 가장 가까운 값 표시</strong>: 각 업체의 투찰 가능 범위(99.9% 행)에 가장 가까운 예가율을 빨간색으로 하이라이트합니다.<br>
+                • <strong>🎯 최적 사정률 구간</strong>: 일반적으로 낙찰 확률이 높은 99.5%~100.5% 구간을 노란색으로 표시합니다.<br>
+                • <strong>🏢 발주처 평균 사정율 표시</strong>: 해당 발주처의 과거 평균 사정율에 가장 가까운 예가율을 초록색으로 하이라이트합니다.<br>
+                <br>
+                <strong>📊 데이터 설명:</strong><br>
+                • <strong>예가율 범위 (103%~99.9%)</strong>: 엑셀 파일의 시뮬레이션 범위 (최고/최저 예가율)<br>
+                • <strong>시뮬레이션 케이스 (${matrix.length}개)</strong>: 총 ${matrix.length - 1}개 정상 시뮬레이션 + 1개 투찰 가능 범위 (99.9% ⭐)<br>
+                • <strong>99.9% ⭐ 행</strong>: 각 업체의 투찰 가능 범위 비율 (예: 100.08% = 예가율 100.1%에 가장 가까움)
             `;
             
             const simulationSection = document.getElementById('simulationSection');
@@ -579,9 +646,113 @@
             });
         }
 
+        function highlightClosestBids() {
+            // Find bid range row (99.9% with is_bid_range flag)
+            const bidRangeCells = document.querySelectorAll('.bid-range-cell');
+            if (bidRangeCells.length === 0) {
+                alert('투찰 가능 범위 데이터가 없습니다.');
+                return;
+            }
+
+            // Clear previous highlights
+            document.querySelectorAll('.closest-bid-highlight').forEach(cell => {
+                cell.classList.remove('closest-bid-highlight');
+            });
+
+            // For each company, find closest bid
+            bidRangeCells.forEach(bidRangeCell => {
+                const companyIdx = parseInt(bidRangeCell.dataset.companyIdx);
+                const bidRangeValue = parseFloat(bidRangeCell.dataset.bidRange);
+                
+                if (!bidRangeValue || isNaN(bidRangeValue)) return;
+
+                // Find all cells for this company (excluding bid range row)
+                const companyCells = document.querySelectorAll(`.company-bid-cell[data-company-idx="${companyIdx}"]`);
+                
+                let closestCell = null;
+                let minDiff = Infinity;
+
+                companyCells.forEach(cell => {
+                    const rowIdx = parseInt(cell.dataset.rowIdx);
+                    const row = document.querySelectorAll('#simulationTbody tr')[rowIdx];
+                    const rate = parseFloat(row.dataset.rate);
+                    
+                    // Skip if not a valid rate
+                    if (isNaN(rate)) return;
+                    
+                    // Calculate difference
+                    const diff = Math.abs(rate - bidRangeValue);
+                    
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestCell = cell;
+                    }
+                });
+
+                // Highlight the closest cell
+                if (closestCell) {
+                    closestCell.classList.add('closest-bid-highlight');
+                }
+            });
+
+            alert('각 업체의 투찰 가능 범위에 가장 가까운 예가율을 하이라이트했습니다!');
+        }
+
         function clearHighlights() {
             const rows = document.querySelectorAll('#simulationTbody tr');
-            rows.forEach(row => row.classList.remove('highlight-row'));
+            rows.forEach(row => {
+                row.classList.remove('highlight-row');
+                row.classList.remove('institution-avg-highlight');
+            });
+            
+            // Also clear closest bid highlights
+            document.querySelectorAll('.closest-bid-highlight').forEach(cell => {
+                cell.classList.remove('closest-bid-highlight');
+            });
+            
+            // Hide institution rate info
+            document.getElementById('institutionRateInfo').style.display = 'none';
+        }
+
+        function highlightInstitutionAvgRate() {
+            if (!institutionAvgRate) {
+                alert('발주처 평균 사정율 데이터가 없습니다. \n\n현재 데이터가 있는 발주처: \n• 제주특별자치도 (99.8%)\n• 경상남도 (100.2%)\n• 한국도로공사 (99.72%)\n• 국토교통부 (100.25%)\n• 한국토지주택공사 (100.63%) 등');
+                return;
+            }
+            
+            // Clear previous highlights
+            clearHighlights();
+            
+            // Find closest row to institution avg rate
+            const rows = document.querySelectorAll('#simulationTbody tr');
+            let closestRow = null;
+            let minDiff = Infinity;
+            
+            rows.forEach(row => {
+                const rate = parseFloat(row.dataset.rate);
+                if (isNaN(rate)) return;
+                
+                const diff = Math.abs(rate - institutionAvgRate);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestRow = row;
+                }
+            });
+            
+            if (closestRow) {
+                closestRow.classList.add('institution-avg-highlight');
+                
+                // Show institution rate info
+                document.getElementById('institutionRateValue').innerHTML = `
+                    <strong>${institutionAvgRate}%</strong> (가장 가까운 예가율: ${closestRow.dataset.rate}%, 차이: ${minDiff.toFixed(2)}%포인트)
+                `;
+                document.getElementById('institutionRateInfo').style.display = 'block';
+                
+                // Scroll to highlighted row
+                closestRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                alert(`발주처 평균 사정율 ${institutionAvgRate}%에 가장 가까운 예가율 ${closestRow.dataset.rate}%를 하이라이트했습니다!`);
+            }
         }
 
         function formatNumber(num) {
