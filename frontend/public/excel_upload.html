@@ -141,18 +141,45 @@
             overflow-x: auto;
             max-height: 600px;
             overflow-y: auto;
+            position: relative;
         }
 
         table {
-            width: 100%;
+            width: auto;
+            min-width: 100%;
             border-collapse: collapse;
-            min-width: 800px;
+            table-layout: auto;
         }
 
         th, td {
-            padding: 12px;
-            text-align: left;
+            padding: 10px 12px;
+            text-align: right;
             border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+            min-width: 100px;
+        }
+
+        th:first-child, td:first-child {
+            position: sticky;
+            left: 0;
+            background-color: #4299e1;
+            z-index: 11;
+        }
+
+        td:first-child {
+            background-color: white;
+            font-weight: bold;
+        }
+
+        th:nth-child(2), td:nth-child(2) {
+            position: sticky;
+            left: 100px;
+            background-color: #4299e1;
+            z-index: 11;
+        }
+
+        td:nth-child(2) {
+            background-color: white;
         }
 
         th {
@@ -164,8 +191,13 @@
             z-index: 10;
         }
 
-        tr:hover {
+        tr:hover td {
             background-color: #f7fafc;
+        }
+
+        tr:hover td:first-child,
+        tr:hover td:nth-child(2) {
+            background-color: #edf2f7;
         }
 
         .highlight-row {
@@ -403,14 +435,19 @@
 
         function displayMetadata(metadata) {
             const grid = document.getElementById('metadataGrid');
+            
+            // 발주처와 공사명 표시
+            const orderingAgency = metadata.ordering_agency !== 'Unknown' ? metadata.ordering_agency : '정보 없음';
+            const projectName = metadata.project_name !== 'Unknown Project' ? metadata.project_name : '정보 없음';
+            
             grid.innerHTML = `
                 <div class="metadata-card">
                     <div class="metadata-label">발주처</div>
-                    <div class="metadata-value">${metadata.ordering_agency}</div>
+                    <div class="metadata-value">${orderingAgency}</div>
                 </div>
                 <div class="metadata-card">
                     <div class="metadata-label">공사명</div>
-                    <div class="metadata-value">${metadata.project_name}</div>
+                    <div class="metadata-value">${projectName}</div>
                 </div>
                 <div class="metadata-card">
                     <div class="metadata-label">추정가격</div>
@@ -453,35 +490,61 @@
             const firstRow = matrix[0];
             const companyNames = Object.keys(firstRow.companies || {});
 
-            // Create table header
+            // Create table header with company names
             const thead = document.getElementById('simulationThead');
+            const companyHeaders = companyNames.map((name, idx) => 
+                `<th title="${name}">업체 ${idx + 1}</th>`
+            ).join('');
+            
             thead.innerHTML = `
                 <tr>
-                    <th>예가율</th>
-                    <th>예정가격</th>
-                    ${companyNames.map(name => `<th>${name}</th>`).join('')}
+                    <th style="text-align: center;">예가율</th>
+                    <th style="text-align: right;">예정가격</th>
+                    ${companyHeaders}
                 </tr>
             `;
 
-            // Create table body
+            // Create table body with all data
             const tbody = document.getElementById('simulationTbody');
             tbody.innerHTML = matrix.map(row => {
+                const companyBids = companyNames.map(name => 
+                    `<td>${formatNumber(row.companies[name])}</td>`
+                ).join('');
+                
                 return `
                     <tr data-rate="${row.rate}">
-                        <td><strong>${row.rate}%</strong></td>
+                        <td style="text-align: center;"><strong>${row.rate}%</strong></td>
                         <td>${formatNumber(row.predicted_price)}</td>
-                        ${companyNames.map(name => `<td>${formatNumber(row.companies[name])}</td>`).join('')}
+                        ${companyBids}
                     </tr>
                 `;
             }).join('');
 
             const stats = document.getElementById('simulationStats');
             stats.innerHTML = `
+                <span class="stat-badge">참여 업체: ${companyNames.length}개</span>
                 <span class="stat-badge">예가율 범위: ${matrix[0].rate}% ~ ${matrix[matrix.length-1].rate}%</span>
                 <span class="stat-badge">시뮬레이션 케이스: ${matrix.length}개</span>
             `;
 
             document.getElementById('simulationSection').classList.add('active');
+            
+            // Show instruction message
+            const instructionDiv = document.createElement('div');
+            instructionDiv.style.cssText = 'background: #e6fffa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #38b2ac;';
+            instructionDiv.innerHTML = `
+                <strong>💡 사용 안내:</strong><br>
+                • 표를 <strong>좌우로 스크롤</strong>하여 모든 업체(최대 20개)의 투찰 금액을 확인할 수 있습니다.<br>
+                • 예가율과 예정가격 열은 고정되어 있어 스크롤 시에도 계속 보입니다.
+            `;
+            
+            const simulationSection = document.getElementById('simulationSection');
+            const existingInstruction = simulationSection.querySelector('.instruction-message');
+            if (existingInstruction) {
+                existingInstruction.remove();
+            }
+            instructionDiv.className = 'instruction-message';
+            simulationSection.insertBefore(instructionDiv, simulationSection.querySelector('h2').nextSibling);
         }
 
         function highlightOptimalRange() {

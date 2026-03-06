@@ -34,7 +34,7 @@ def generate_sample_excel():
         # Company information header
         metadata.append(['순번', '업체명', '환산점수 합계', '투찰가능 상한', '투찰가능 하한'])
         
-        # Sample companies
+        # Sample companies (최대 20개)
         companies = [
             [1, '수성+세일', 92.5, 633401615, 596491474],
             [2, '삼안+혜인', 91.8, 632731458, 595892184],
@@ -49,7 +49,13 @@ def generate_sample_excel():
             [11, '부림+창조', 85.0, 626194476, 589688043],
             [12, '우리+새한', 84.4, 625624319, 589148753],
             [13, '광진+토목', 83.8, 625054162, 588609463],
-            [14, '대한+종합', 83.1, 624384005, 587970172]
+            [14, '대한+종합', 83.1, 624384005, 587970172],
+            [15, '중앙+엔지니어링', 82.5, 623813848, 587430882],
+            [16, '한일+건설', 81.8, 623143692, 586791592],
+            [17, '성지+기술공사', 81.2, 622573535, 586252302],
+            [18, '평화+종합건설', 80.6, 622003378, 585713011],
+            [19, '신한+엔지니어링', 79.9, 621333221, 585073721],
+            [20, '동부+건설기술', 79.3, 620763065, 584534431]
         ]
         
         metadata.extend(companies)
@@ -59,7 +65,7 @@ def generate_sample_excel():
         # Simulation Matrix Header
         # ============================================================================
         
-        metadata.append(['예가율', '예정가격'] + [f'업체{i+1}' for i in range(14)])
+        metadata.append(['예가율', '예정가격'] + [f'업체{i+1}' for i in range(20)])
         
         # Create DataFrame for metadata and save
         df_meta = pd.DataFrame(metadata)
@@ -79,9 +85,9 @@ def generate_sample_excel():
             
             row = [f'{rate}%', f'{predicted_price:,.0f}']
             
-            # Generate bid amounts for each company
+            # Generate bid amounts for each company (20 companies)
             # Each company bids slightly differently based on their strategy
-            for company_idx in range(14):
+            for company_idx in range(20):
                 # Companies bid between 99.5% ~ 99.9% of predicted price
                 bid_rate = 0.995 + (company_idx * 0.0005) + np.random.uniform(-0.001, 0.001)
                 bid_amount = predicted_price * bid_rate
@@ -99,7 +105,7 @@ def generate_sample_excel():
     
     print(f"✅ Sample Excel file created: {output_file}")
     print(f"   - Estimated price: {estimated_price:,}원")
-    print(f"   - Number of companies: 14")
+    print(f"   - Number of companies: 20")
     print(f"   - Simulation range: 97.0% ~ 103.0%")
     return str(output_file)
 
