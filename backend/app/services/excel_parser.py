@@ -23,6 +23,7 @@ class ExcelParser:
         self.df = None
         self.metadata = {}
         self.companies = []
+        self.company_columns = []  # Store column indices
         self.simulation_matrix = None
         
     def parse(self) -> Dict[str, Any]:
@@ -145,6 +146,7 @@ class ExcelParser:
         Row 10-11: 투찰범위 하한선/상한선
         """
         companies = []
+        company_columns = []  # Store column indices where companies are found
         
         # Row 4 contains company names starting from column 4
         company_row_idx = None
@@ -178,7 +180,7 @@ class ExcelParser:
         if company_row_idx is not None and len(self.df) > company_row_idx:
             company_row = self.df.iloc[company_row_idx]
             
-            # Companies start from column 4
+            # Companies start from column 4 - scan all columns
             for col_idx in range(4, len(company_row)):
                 cell = company_row.iloc[col_idx]
                 if pd.notna(cell):
@@ -188,10 +190,18 @@ class ExcelParser:
                         # Skip non-company cells
                         if company_name.replace('.', '').replace('-', '').replace('%', '').replace('(', '').replace(')', '').isdigit():
                             continue
-                        if '점수' in company_name or '합계' in company_name:
+                        # Skip header/label cells
+                        skip_keywords = ['점수', '합계', '투찰', '범위', '신인도', '순위', '등급', '평가', '지명업체']
+                        if any(keyword in company_name for keyword in skip_keywords):
+                            continue
+                        # Only include if starts with a number (e.g., "1.", "2.", etc.)
+                        if not company_name[0].isdigit():
                             continue
                         
-                        company_info = {'name': company_name}
+                        company_info = {
+                            'name': company_name,
+                            'column_index': col_idx  # Store column index for simulation matrix
+                        }
                         
                         # Extract score
                         if score_row_idx is not None and col_idx < len(self.df.iloc[score_row_idx]):
@@ -223,8 +233,10 @@ class ExcelParser:
                         # Only add if it has at least a score
                         if 'total_score' in company_info:
                             companies.append(company_info)
+                            company_columns.append(col_idx)
         
         self.companies = companies
+        self.company_columns = company_columns  # Store for use in simulation matrix
     
     def extract_simulation_matrix(self):
         """
@@ -232,9 +244,8 @@ class ExcelParser:
         at different expected price rates.
         
         Real format:
-        Row 16: 예가율(%) | 예정가격 | 투찰범위 (header)
-        Row 17+: 103 | (empty or value) | company1_bid | company2_bid | ...
-        Note: Column 1 (예정가격) might be empty, column 2+ are company bids
+        Row 16: 예가율(%) (col 0) | 예정가격 (col 2) | 투찰범위 (col 4+)
+        Row 17+: 103 | 696609600 | company1_bid | company2_bid | ...
         """
         matrix_data = []
         
@@ -252,14 +263,14 @@ class ExcelParser:
             self.simulation_matrix = []
             return
         
-        # Get company names from companies list
-        company_names = [c['name'] for c in self.companies if 'total_score' in c]
+        # Get company info with column indices
+        company_info_list = [(c['name'], c['column_index']) for c in self.companies if 'total_score' in c and 'column_index' in c]
         
         # Extract matrix data
         for idx in range(matrix_start_row, len(self.df)):
             row = self.df.iloc[idx]
             
-            # First column should be rate (percentage)
+            # Column 0: rate (percentage)
             rate_cell = row.iloc[0]
             if pd.isna(rate_cell):
                 break
@@ -268,38 +279,32 @@ class ExcelParser:
             if rate is None or rate < 95 or rate > 105:
                 break
             
-            # Calculate predicted price from rate and estimated price
-            estimated_price = self.metadata.get('estimated_price', 0)
+            # Column 2: predicted price
             predicted_price = 0
-            if estimated_price > 0 and rate:
-                predicted_price = int(estimated_price * rate / 100)
+            if len(row) > 2 and pd.notna(row.iloc[2]):
+                try:
+                    predicted_price = int(float(row.iloc[2]))
+                except:
+                    pass
             
-            # Remaining columns are company bids
+            # If no predicted price in excel, calculate it
+            if predicted_price == 0:
+                estimated_price = self.metadata.get('estimated_price', 0)
+                if estimated_price > 0 and rate:
+                    predicted_price = int(estimated_price * rate / 100)
+            
+            # Build row data
             row_data = {
                 'rate': rate,
                 'predicted_price': predicted_price,
                 'companies': {}
             }
             
-            # Extract company bids
-            # Companies start from column 2 or 4 depending on format
-            # Try to find first numeric column after rate
-            start_col = 2
-            for test_col in range(2, min(6, len(row))):
-                if pd.notna(row.iloc[test_col]):
+            # Extract company bids using stored column indices
+            for company_name, col_idx in company_info_list:
+                if col_idx < len(row) and pd.notna(row.iloc[col_idx]):
                     try:
-                        val = float(row.iloc[test_col])
-                        if val > 100000:  # Looks like a bid amount
-                            start_col = test_col
-                            break
-                    except:
-                        pass
-            
-            for col_idx in range(start_col, len(row)):
-                if col_idx - start_col < len(company_names) and pd.notna(row.iloc[col_idx]):
-                    company_name = company_names[col_idx - start_col]
-                    try:
-                        bid_amount = float(row.iloc[col_idx])
+                        bid_amount = int(float(row.iloc[col_idx]))
                         if bid_amount > 0:
                             row_data['companies'][company_name] = bid_amount
                     except:
