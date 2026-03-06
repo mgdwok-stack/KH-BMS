@@ -30,8 +30,17 @@ class ExcelParser:
         Returns a dictionary containing all extracted data.
         """
         try:
-            # Read Excel file
-            self.df = pd.read_excel(self.file_path, sheet_name=0)
+            # Read Excel file - try multiple engines
+            try:
+                # Try openpyxl first (for .xlsx)
+                self.df = pd.read_excel(self.file_path, sheet_name=0, engine='openpyxl', header=None)
+            except:
+                try:
+                    # Try xlrd (for .xls)
+                    self.df = pd.read_excel(self.file_path, sheet_name=0, engine='xlrd', header=None)
+                except:
+                    # Fallback to default
+                    self.df = pd.read_excel(self.file_path, sheet_name=0, header=None)
             
             # Extract different sections
             self.extract_metadata()

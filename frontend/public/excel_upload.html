@@ -490,11 +490,13 @@
             const firstRow = matrix[0];
             const companyNames = Object.keys(firstRow.companies || {});
 
-            // Create table header with company names
+            // Create table header with actual company names
             const thead = document.getElementById('simulationThead');
-            const companyHeaders = companyNames.map((name, idx) => 
-                `<th title="${name}">업체 ${idx + 1}</th>`
-            ).join('');
+            const companyHeaders = companyNames.map((name) => {
+                // Truncate long names for display
+                const displayName = name.length > 15 ? name.substring(0, 13) + '...' : name;
+                return `<th title="${name}">${displayName}</th>`;
+            }).join('');
             
             thead.innerHTML = `
                 <tr>
