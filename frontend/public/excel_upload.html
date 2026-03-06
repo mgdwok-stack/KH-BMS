@@ -509,14 +509,26 @@
             // Create table body with all data
             const tbody = document.getElementById('simulationTbody');
             tbody.innerHTML = matrix.map(row => {
-                const companyBids = companyNames.map(name => 
-                    `<td>${formatNumber(row.companies[name])}</td>`
-                ).join('');
+                const isBidRange = row.is_bid_range || false;
+                
+                const companyBids = companyNames.map(name => {
+                    const value = row.companies[name];
+                    if (isBidRange) {
+                        // For bid range row, show as percentage
+                        return `<td style="background: #fef5e7; font-weight: 600;">${value ? value.toFixed(2) + '%' : '-'}</td>`;
+                    } else {
+                        // For normal rows, show as currency
+                        return `<td>${formatNumber(value)}</td>`;
+                    }
+                }).join('');
+                
+                const rowStyle = isBidRange ? 'background: #fffacd; border: 2px solid #ffd700; font-weight: bold;' : '';
+                const rateLabel = isBidRange ? `${row.rate}% ⭐` : `${row.rate}%`;
                 
                 return `
-                    <tr data-rate="${row.rate}">
-                        <td style="text-align: center;"><strong>${row.rate}%</strong></td>
-                        <td>${formatNumber(row.predicted_price)}</td>
+                    <tr data-rate="${row.rate}" style="${rowStyle}">
+                        <td style="text-align: center;"><strong>${rateLabel}</strong></td>
+                        <td style="${isBidRange ? 'font-weight: 600;' : ''}">${isBidRange ? '투찰 가능 범위 (비율)' : formatNumber(row.predicted_price)}</td>
                         ${companyBids}
                     </tr>
                 `;

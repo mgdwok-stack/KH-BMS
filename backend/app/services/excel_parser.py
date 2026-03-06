@@ -246,8 +246,12 @@ class ExcelParser:
         Real format:
         Row 16: 예가율(%) (col 0) | 예정가격 (col 2) | 투찰범위 (col 4+)
         Row 17+: 103 | 696609600 | company1_bid | company2_bid | ...
+        ...
+        Row 77: 97 | 656030400 | ... (마지막 정상 시뮬레이션)
+        Row 78: 99.9 | 579465802.5 | ... (투찰 가능 범위)
         """
         matrix_data = []
+        bid_range_row = None  # Store the 99.9% bid range row separately
         
         # Find simulation matrix header row
         matrix_start_row = None
@@ -266,6 +270,9 @@ class ExcelParser:
         # Get company info with column indices
         company_info_list = [(c['name'], c['column_index']) for c in self.companies if 'total_score' in c and 'column_index' in c]
         
+        # Track first 99.9% row position (DataFrame index, not matrix_data index)
+        first_999_row_idx = None
+        
         # Extract matrix data
         for idx in range(matrix_start_row, len(self.df)):
             row = self.df.iloc[idx]
@@ -276,7 +283,11 @@ class ExcelParser:
                 break
             
             rate = self._parse_percentage(str(rate_cell))
-            if rate is None or rate < 95 or rate > 105:
+            if rate is None:
+                break
+            
+            # Stop at invalid rates (but allow 97-103 range)
+            if rate < 95 or rate > 105:
                 break
             
             # Column 2: predicted price
@@ -300,18 +311,50 @@ class ExcelParser:
                 'companies': {}
             }
             
+            # Check if this is the second 99.9% row (bid range row)
+            is_bid_range_row = False
+            if rate == 99.9 and first_999_row_idx is not None and idx > first_999_row_idx:
+                is_bid_range_row = True
+            
             # Extract company bids using stored column indices
             for company_name, col_idx in company_info_list:
                 if col_idx < len(row) and pd.notna(row.iloc[col_idx]):
                     try:
-                        bid_amount = int(float(row.iloc[col_idx]))
-                        if bid_amount > 0:
-                            row_data['companies'][company_name] = bid_amount
+                        value = float(row.iloc[col_idx])
+                        # For bid range row (second 99.9%), values are ratios (e.g., 1.0007, 0.9972)
+                        # Convert to percentages if value is between 0.9 and 1.1
+                        if is_bid_range_row and 0.9 <= value <= 1.1:
+                            # This is a ratio - convert to percentage
+                            row_data['companies'][company_name] = round(value * 100, 2)
+                        else:
+                            # This is a bid amount
+                            bid_amount = int(value)
+                            if bid_amount > 0:
+                                row_data['companies'][company_name] = bid_amount
                     except:
                         pass
             
-            if len(row_data['companies']) > 0:
-                matrix_data.append(row_data)
+            # Check if this is a 99.9% row
+            if rate == 99.9:
+                if first_999_row_idx is None:
+                    first_999_row_idx = idx  # Store DataFrame row index
+                    # This is the first 99.9% (normal simulation row)
+                    if len(row_data['companies']) > 0:
+                        matrix_data.append(row_data)
+                else:
+                    # This is the second 99.9% (bid range row) - store separately
+                    if len(row_data['companies']) > 0:
+                        bid_range_row = row_data
+                    break  # Stop processing after finding bid range row
+            else:
+                # Normal simulation row
+                if len(row_data['companies']) > 0:
+                    matrix_data.append(row_data)
+        
+        # Add bid_range_row to matrix if found
+        if bid_range_row:
+            bid_range_row['is_bid_range'] = True  # Mark as special row
+            matrix_data.append(bid_range_row)
         
         self.simulation_matrix = matrix_data
     
