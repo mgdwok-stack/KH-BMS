@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 입찰 분석 통합 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        select, input, button {
+            padding: 12px 20px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        select {
+            flex: 1;
+            min-width: 200px;
+            cursor: pointer;
+            background: white;
+        }
+        
+        input {
+            width: 150px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            border: none;
+        }
+        
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .result {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card p {
+            opacity: 0.9;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        table th, table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        table th {
+            background: #667eea;
+            color: white;
+        }
+        
+        table tr:hover {
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 입찰 분석 통합 시스템</h1>
+            <p>발주처별 통계 + PQ 대표사 분석</p>
+        </div>
+
+        <!-- 탭 메뉴 -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('organizations')">
+                🏢 발주처별 통계
+            </div>
+            <div class="tab" onclick="switchTab('pq')">
+                📊 PQ 대표사 분석
+            </div>
+            <div class="tab" onclick="switchTab('upload')">
+                📤 CSV 업로드
+            </div>
+            <div class="tab" onclick="switchTab('overview')">
+                📈 전체 개요
+            </div>
+        </div>
+
+        <!-- 발주처별 통계 탭 -->
+        <div id="organizations" class="tab-content active">
+            <div class="section">
+                <h2>🏢 발주처 목록</h2>
+                <button onclick="loadOrganizations()">발주처 불러오기</button>
+                <div id="orgList" class="stats-grid"></div>
+            </div>
+
+            <div class="section">
+                <h2>📋 발주처별 입찰 데이터</h2>
+                <div class="controls">
+                    <select id="orgSelect">
+                        <option value="">발주처를 선택하세요...</option>
+                    </select>
+                    <input type="number" id="orgLimit" value="10" min="1" max="100" placeholder="조회 건수">
+                    <button onclick="loadOrgData()">조회하기</button>
+                </div>
+                <div id="orgDataResult"></div>
+            </div>
+        </div>
+
+        <!-- PQ 분석 탭 -->
+        <div id="pq" class="tab-content">
+            <div class="section">
+                <h2>📊 PQ 전체 통계</h2>
+                <button onclick="loadPQStats()">통계 불러오기</button>
+                <div id="pqStatsResult" class="stats-grid"></div>
+            </div>
+
+            <div class="section">
+                <h2>🏢 대표사별 PQ 분석</h2>
+                <div class="controls">
+                    <select id="pqCompanySelect">
+                        <option value="">대표사를 선택하세요...</option>
+                    </select>
+                    <input type="number" id="pqReferenceRate" value="99.9" step="0.1" placeholder="기준 투찰률">
+                    <button onclick="analyzePQCompany()">분석하기</button>
+                </div>
+                <div id="pqAnalysisResult" class="result" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- 전체 개요 탭 -->
+        <div id="overview" class="tab-content">
+            <div class="section">
+                <h2>📈 시스템 전체 개요</h2>
+                <button onclick="loadOverview()">개요 불러오기</button>
+                <div id="overviewResult"></div>
+            </div>
+        </div>
+
+        <!-- CSV 업로드 탭 -->
+        <div id="upload" class="tab-content">
+            <div class="section">
+                <h2>📤 CSV 파일 업로드</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    입찰 데이터 CSV 파일을 업로드하면 자동으로 발주처별 DB가 생성됩니다.
+                </p>
+                
+                <div style="margin-bottom: 20px;">
+                    <input type="file" id="csvFile" accept=".csv,.CSV" style="display: none;" onchange="uploadCSV()">
+                    <button onclick="document.getElementById('csvFile').click()" style="background: #28a745;">
+                        📁 CSV 파일 선택 및 업로드
+                    </button>
+                    <button onclick="processUploadedFiles()" style="background: #007bff;">
+                        🔄 DB 재생성 (수동)
+                    </button>
+                </div>
+
+                <div id="uploadResult" class="result" style="display: none;"></div>
+                
+                <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                
+                <h3>📋 업로드된 파일 목록</h3>
+                <button onclick="loadUploadedFiles()">파일 목록 새로고침</button>
+                <div id="uploadedFilesList" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API 기본 URL - 같은 도메인 사용
+        const API_BASE = window.location.origin;
+
+        // 탭 전환
+        function switchTab(tabName) {
+            // 모든 탭과 콘텐츠 비활성화
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            // 선택된 탭 활성화
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // 페이지 로드 시
+        window.onload = function() {
+            loadOrganizations();
+            loadPQCompanies();
+            loadOverview();
+            loadUploadedFiles();
+        };
+
+        // CSV 업로드
+        async function uploadCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            const resultDiv = document.getElementById('uploadResult');
+            
+            if (!file) {
+                alert('파일을 선택하세요!');
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '업로드 중...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch(`${API_BASE}/api/v1/upload-csv`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.textContent = data.message;
+                    resultDiv.style.borderLeft = '5px solid #28a745';
+                    
+                    // 파일 목록 새로고침
+                    setTimeout(() => {
+                        loadUploadedFiles();
+                        fileInput.value = ''; // 파일 선택 초기화
+                    }, 1000);
+                } else {
+                    resultDiv.textContent = '❌ ' + data.message;
+                    resultDiv.style.borderLeft = '5px solid #dc3545';
+                }
+            } catch (error) {
+                resultDiv.textContent = '❌ 업로드 실패: ' + error.message;
+                resultDiv.style.borderLeft = '5px solid #dc3545';
+            }
+        }
+        
+        // 업로드된 파일 목록
+        async function loadUploadedFiles() {
+            const div = document.getElementById('uploadedFilesList');
+            div.innerHTML = '<div class="loading">불러오는 중...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/uploaded-files`);
+                const data = await response.json();
+                
+                if (data.total === 0) {
+                    div.innerHTML = '<p style="color: #999;">업로드된 파일이 없습니다.</p>';
+                    return;
+                }
+                
+                let html = '<table><thead><tr>';
+                html += '<th>파일명</th><th>크기</th><th>업로드 시간</th>';
+                html += '</tr></thead><tbody>';
+                
+                data.files.forEach(file => {
+                    const sizeKB = (file.size / 1024).toFixed(2);
+                    const uploadTime = new Date(file.uploaded_at).toLocaleString('ko-KR');
+                    
+                    html += `<tr>
+                        <td>${file.filename}</td>
+                        <td>${sizeKB} KB</td>
+                        <td>${uploadTime}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                div.innerHTML = html;
+            } catch (error) {
+                console.error('Error:', error);
+                div.innerHTML = `<div class="loading">❌ 오류: ${error.message}<br><small>API 서버 연결 실패. F12로 콘솔 확인</small></div>`;
+            }
+        }
+        
+        // DB 재생성
+        async function processUploadedFiles() {
+            const resultDiv = document.getElementById('uploadResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '🔄 DB를 생성하는 중입니다... 잠시만 기다려주세요.';
+            resultDiv.style.borderLeft = '5px solid #007bff';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/process-uploaded-files`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    let message = data.message + '\n\n';
+                    if (data.databases && data.databases.length > 0) {
+                        message += '📊 생성된 DB:\n';
+                        data.databases.forEach(db => {
+                            message += `  - ${db}\n`;
+                        });
+                    }
+                    if (data.output) {
+                        message += '\n📋 상세 로그:\n' + data.output;
+                    }
+                    
+                    resultDiv.textContent = message;
+                    resultDiv.style.borderLeft = '5px solid #28a745';
+                    
+                    // 발주처 목록 새로고침
+                    setTimeout(() => {
+                        if (document.getElementById('organizations').classList.contains('active')) {
+                            loadOrganizations();
+                        }
+                    }, 1000);
+                } else {
+                    resultDiv.textContent = '❌ ' + data.message + '\n\n에러:\n' + (data.error || data.output);
+                    resultDiv.style.borderLeft = '5px solid #dc3545';
+                }
+            } catch (error) {
+                resultDiv.textContent = '❌ DB 생성 실패: ' + error.message;
+                resultDiv.style.borderLeft = '5px solid #dc3545';
+            }
+        }
+
+        // 발주처 목록 불러오기
+        async function loadOrganizations() {
+            const div = document.getElementById('orgList');
+            div.innerHTML = '<div class="loading">불러오는 중...</div>';
+            
+            try {
+                console.log('Fetching organizations from:', `${API_BASE}/api/v1/organizations`);
+                const response = await fetch(`${API_BASE}/api/v1/organizations`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                const select = document.getElementById('orgSelect');
+                select.innerHTML = '<option value="">발주처를 선택하세요...</option>';
+                
+                let html = '';
+                data.forEach(org => {
+                    html += `
+                        <div class="stat-card">
+                            <h3>${org.total_records}</h3>
+                            <p>${org.name}</p>
+                            <small>${org.total_projects}개 프로젝트</small>
+                        </div>
+                    `;
+                    
+                    const option = document.createElement('option');
+                    option.value = org.name;
+                    option.textContent = `${org.name} (${org.total_records}건)`;
+                    select.appendChild(option);
+                });
+                
+                div.innerHTML = html;
+            } catch (error) {
+                console.error('Error:', error);
+                div.innerHTML = `<div class="loading">❌ 오류: ${error.message}<br><small>API 서버 연결 실패. F12로 콘솔 확인</small></div>`;
+            }
+        }
+
+        // 발주처 데이터 조회
+        async function loadOrgData() {
+            const org = document.getElementById('orgSelect').value;
+            const limit = document.getElementById('orgLimit').value;
+            const div = document.getElementById('orgDataResult');
+            
+            if (!org) {
+                alert('발주처를 선택하세요!');
+                return;
+            }
+            
+            div.innerHTML = '<div class="loading">조회 중...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/organizations/${encodeURIComponent(org)}?limit=${limit}`);
+                const data = await response.json();
+                
+                let html = `<h3>📋 ${org} - 총 ${data.length}건</h3>`;
+                html += '<table><thead><tr>';
+                html += '<th>사업명</th><th>기초금액</th><th>예정금액</th><th>업체명</th><th>낙찰여부</th>';
+                html += '</tr></thead><tbody>';
+                
+                data.forEach(row => {
+                    html += `<tr>
+                        <td>${row.project_name}</td>
+                        <td>${parseInt(row.base_amount).toLocaleString()}원</td>
+                        <td>${parseInt(row.estimated_price).toLocaleString()}원</td>
+                        <td>${row.company_name}</td>
+                        <td>${row.is_winner === 'O' ? '🏆' : '-'}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                div.innerHTML = html;
+            } catch (error) {
+                console.error('Error:', error);
+                div.innerHTML = `<div class="loading">❌ 오류: ${error.message}<br><small>API 서버 연결 실패. F12로 콘솔 확인</small></div>`;
+            }
+        }
+
+        // PQ 대표사 목록
+        async function loadPQCompanies() {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/pq-companies`);
+                const data = await response.json();
+                
+                const select = document.getElementById('pqCompanySelect');
+                select.innerHTML = '<option value="">대표사를 선택하세요...</option>';
+                
+                data.companies.forEach(company => {
+                    const option = document.createElement('option');
+                    option.value = company.company_name;
+                    option.textContent = `${company.company_name} (${company.bid_count}건)`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('대표사 목록 로드 실패:', error);
+            }
+        }
+
+        // PQ 통계
+        async function loadPQStats() {
+            const div = document.getElementById('pqStatsResult');
+            div.innerHTML = '<div class="loading">통계 불러오는 중...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/pq-stats`);
+                const data = await response.json();
+                
+                let html = `
+                    <div class="stat-card">
+                        <h3>${data.total_records}</h3>
+                        <p>총 입찰 기록</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${data.total_companies}</h3>
+                        <p>등록된 대표사</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${data.companies[0].company}</h3>
+                        <p>최다 참여 (${data.companies[0].participation_count}건)</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${data.rank_statistics.length}</h3>
+                        <p>PQ 순위 범위</p>
+                    </div>
+                `;
+                
+                div.innerHTML = html;
+            } catch (error) {
+                console.error('Error:', error);
+                div.innerHTML = `<div class="loading">❌ 오류: ${error.message}<br><small>API 서버 연결 실패. F12로 콘솔 확인</small></div>`;
+            }
+        }
+
+        // PQ 대표사 분석
+        async function analyzePQCompany() {
+            const company = document.getElementById('pqCompanySelect').value;
+            const refRate = document.getElementById('pqReferenceRate').value;
+            const div = document.getElementById('pqAnalysisResult');
+            
+            if (!company) {
+                alert('대표사를 선택하세요!');
+                return;
+            }
+            
+            div.style.display = 'block';
+            div.textContent = '분석 중...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/pq-analysis/${encodeURIComponent(company)}?reference_rate=${refRate}`);
+                const data = await response.json();
+                
+                let result = `🏢 회사명: ${data.company_name}\n`;
+                result += `📊 총 입찰: ${data.total_bids}건\n`;
+                result += `📈 기준 투찰률: ${data.reference_rate}%\n\n`;
+                result += `【PQ순위별 상세 분석】\n`;
+                
+                data.rank_analysis.forEach(rank => {
+                    result += `\n▶ PQ순위 ${rank.rank}위 (총 ${rank.bid_count}건)\n`;
+                    result += `   평균 투찰률: ${rank.avg_rate}% (범위: ${rank.min_rate}% ~ ${rank.max_rate}%)\n`;
+                    result += `   ${data.reference_rate}% 이상: ${rank.high_rate_count}건 (${rank.high_rate_percentage}%)\n`;
+                    result += `   ${data.reference_rate}% 미만: ${rank.low_rate_count}건 (${rank.low_rate_percentage}%)\n`;
+                    if (rank.winner_count > 0) {
+                        result += `   🏆 낙찰: ${rank.winner_count}건\n`;
+                    }
+                });
+                
+                if (Object.keys(data.insights).length > 0) {
+                    result += `\n【💡 전략적 인사이트】\n`;
+                    Object.values(data.insights).forEach(insight => {
+                        result += `  • ${insight}\n`;
+                    });
+                }
+                
+                div.textContent = result;
+            } catch (error) {
+                div.textContent = `분석 실패: ${error.message}`;
+            }
+        }
+
+        // 전체 개요
+        async function loadOverview() {
+            const div = document.getElementById('overviewResult');
+            div.innerHTML = '<div class="loading">개요 불러오는 중...</div>';
+            
+            try {
+                const [orgRes, pqRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/v1/organizations`),
+                    fetch(`${API_BASE}/api/v1/pq-stats`)
+                ]);
+                
+                const orgData = await orgRes.json();
+                const pqData = await pqRes.json();
+                
+                let html = '<div class="stats-grid">';
+                
+                html += `
+                    <div class="stat-card">
+                        <h3>${orgData.length}</h3>
+                        <p>발주처 수</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${orgData.reduce((sum, o) => sum + o.total_records, 0)}</h3>
+                        <p>발주처별 총 입찰</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${pqData.total_companies}</h3>
+                        <p>대표사 수</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${pqData.total_records}</h3>
+                        <p>PQ 분석 데이터</p>
+                    </div>
+                `;
+                
+                html += '</div>';
+                
+                html += '<h3 style="margin-top: 30px; color: #667eea;">📂 데이터베이스 저장 위치</h3>';
+                html += '<div class="result">';
+                html += '📍 발주처별 DB:\n';
+                html += '   위치: /home/user/webapp/data/databases/\n';
+                html += '   파일: 경상남도.db, 경상남도 합천군.db, 충청북도 청주시.db, 한국어촌어항공단.db\n\n';
+                html += '📍 PQ 통계 DB:\n';
+                html += '   위치: /home/user/webapp/data/bidbot_data.db\n';
+                html += '   내용: 26개 대표사, 43건 입찰 데이터\n';
+                html += '</div>';
+                
+                div.innerHTML = html;
+            } catch (error) {
+                console.error('Error:', error);
+                div.innerHTML = `<div class="loading">❌ 오류: ${error.message}<br><small>API 서버 연결 실패. F12로 콘솔 확인</small></div>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 API 테스트 페이지</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { border-left: 4px solid #28a745; }
+        .error { border-left: 4px solid #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>🧪 입찰 분석 시스템 API 테스트</h1>
+    
+    <div class="test-section">
+        <h2>🔍 시스템 상태</h2>
+        <p><strong>API Base URL:</strong> <span id="apiBase"></span></p>
+        <button onclick="testHealth()">Health Check</button>
+        <div id="healthResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🏢 발주처 API 테스트</h2>
+        <button onclick="testOrganizations()">발주처 목록 조회</button>
+        <button onclick="testOrgData()">경상남도 데이터 조회</button>
+        <div id="orgResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 PQ 분석 API 테스트</h2>
+        <button onclick="testPQStats()">PQ 전체 통계</button>
+        <button onclick="testPQCompanies()">대표사 목록</button>
+        <button onclick="testPQAnalysis()">도화 분석</button>
+        <div id="pqResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📤 CSV 업로드 API 테스트</h2>
+        <button onclick="testUploadedFiles()">업로드된 파일 목록</button>
+        <input type="file" id="testFile" accept=".csv" style="margin: 10px 0;">
+        <button onclick="testUpload()">파일 업로드 테스트</button>
+        <div id="uploadResult" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        document.getElementById('apiBase').textContent = API_BASE;
+
+        async function testAPI(url, method = 'GET', body = null) {
+            try {
+                console.log(`Testing: ${method} ${url}`);
+                const options = { method };
+                if (body) {
+                    options.body = body;
+                }
+                
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data: data
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        function showResult(elementId, result) {
+            const div = document.getElementById(elementId);
+            div.style.display = 'block';
+            div.className = 'result ' + (result.success ? 'success' : 'error');
+            
+            if (result.success) {
+                div.textContent = `✅ 성공 (HTTP ${result.status})\n\n` + JSON.stringify(result.data, null, 2);
+            } else {
+                div.textContent = `❌ 실패\n\n에러: ${result.error || JSON.stringify(result.data, null, 2)}`;
+            }
+        }
+
+        async function testHealth() {
+            const result = await testAPI(`${API_BASE}/health`);
+            showResult('healthResult', result);
+        }
+
+        async function testOrganizations() {
+            const result = await testAPI(`${API_BASE}/api/v1/organizations`);
+            showResult('orgResult', result);
+        }
+
+        async function testOrgData() {
+            const result = await testAPI(`${API_BASE}/api/v1/organizations/경상남도?limit=3`);
+            showResult('orgResult', result);
+        }
+
+        async function testPQStats() {
+            const result = await testAPI(`${API_BASE}/api/v1/pq-stats`);
+            showResult('pqResult', result);
+        }
+
+        async function testPQCompanies() {
+            const result = await testAPI(`${API_BASE}/api/v1/pq-companies`);
+            showResult('pqResult', result);
+        }
+
+        async function testPQAnalysis() {
+            const result = await testAPI(`${API_BASE}/api/v1/pq-analysis/도화?reference_rate=99.9`);
+            showResult('pqResult', result);
+        }
+
+        async function testUploadedFiles() {
+            const result = await testAPI(`${API_BASE}/api/v1/uploaded-files`);
+            showResult('uploadResult', result);
+        }
+
+        async function testUpload() {
+            const fileInput = document.getElementById('testFile');
+            if (!fileInput.files.length) {
+                alert('파일을 선택하세요!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/upload-csv`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('uploadResult', {
+                    success: response.ok,
+                    status: response.status,
+                    data: data
+                });
+            } catch (error) {
+                showResult('uploadResult', {
+                    success: false,
+                    error: error.message
+                });
+            }
+        }
+
+        // 페이지 로드 시 자동 테스트
+        window.onload = function() {
+            testHealth();
+        };
+    </script>
+</body>
+</html>

@@ -9,16 +9,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://bidbot:bidbot_password@localhost:5432/bidbot_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/bidbot.db")
 
-# Create SQLAlchemy engine
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-    echo=True if os.getenv("DEBUG") == "True" else False
-)
+# Create SQLAlchemy engine with SQLite-compatible settings
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},  # SQLite specific
+        echo=True if os.getenv("DEBUG") == "True" else False
+    )
+else:
+    # PostgreSQL settings
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=10,
+        max_overflow=20,
+        pool_pre_ping=True,
+        echo=True if os.getenv("DEBUG") == "True" else False
+    )
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
