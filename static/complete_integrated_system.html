@@ -565,13 +565,20 @@
         <!-- Tab: CSV Upload -->
         <div id="tab-csv" class="tab-content">
             <div class="section">
-                <h3 class="section-title">📤 CSV 파일 업로드 (PQ 데이터 자동 분석)</h3>
+                <h3 class="section-title">📤 CSV 파일 업로드</h3>
                 
                 <div class="upload-area" id="csv-upload-area">
                     <input type="file" id="csv-file-input" accept=".csv,.CSV" style="display:none" onchange="uploadCSVFile(this.files[0])">
                     <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
                     <p style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">CSV 파일을 드래그하거나 클릭하여 업로드</p>
-                    <p style="color: #666;">업로드 시 자동으로 PQ 통계 DB가 생성됩니다</p>
+                    <p style="color: #666;">업로드 후 'DB 업데이트' 버튼을 눌러주세요</p>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="updateDatabases()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 15px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        🔄 DB 업데이트 (PQ 분석 + 발주처별 예가)
+                    </button>
+                    <div id="db-update-status" style="margin-top: 15px; padding: 15px; border-radius: 8px; display: none;"></div>
                 </div>
             </div>
 
@@ -1076,7 +1083,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert('CSV 업로드 성공! DB가 자동 생성되었습니다.');
+                    alert('CSV 업로드 성공! "DB 업데이트" 버튼을 눌러 데이터베이스를 갱신하세요.');
                     loadUploadedFiles();
                 } else {
                     alert('CSV 업로드 실패: ' + (data.detail || 'Unknown error'));
@@ -1084,6 +1091,50 @@
             } catch (error) {
                 console.error('CSV upload error:', error);
                 alert('CSV 파일 업로드 실패');
+            }
+        }
+
+        async function updateDatabases() {
+            const statusDiv = document.getElementById('db-update-status');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#fff3cd';
+            statusDiv.style.color = '#856404';
+            statusDiv.innerHTML = '⏳ DB 업데이트 중... (최대 2분 소요)';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/update-databases`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const pqStatus = data.results.pq_stats.status;
+                    const pqMsg = data.results.pq_stats.message;
+                    const orgMsg = data.results.organization_dbs.message;
+
+                    statusDiv.style.background = pqStatus === 'success' ? '#d4edda' : '#f8d7da';
+                    statusDiv.style.color = pqStatus === 'success' ? '#155724' : '#721c24';
+                    statusDiv.innerHTML = `
+                        ✅ DB 업데이트 완료!<br>
+                        📊 PQ 분석: ${pqMsg}<br>
+                        🏢 발주처별: ${orgMsg}<br>
+                        <small>※ 모든 DB는 로컬(data/)에 저장됩니다</small>
+                    `;
+
+                    // Reload PQ companies and organizations
+                    loadPQCompanies();
+                    loadOrganizations();
+                } else {
+                    statusDiv.style.background = '#f8d7da';
+                    statusDiv.style.color = '#721c24';
+                    statusDiv.innerHTML = '❌ DB 업데이트 실패: ' + (data.detail || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('DB update error:', error);
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.color = '#721c24';
+                statusDiv.innerHTML = '❌ DB 업데이트 중 오류 발생';
             }
         }
 

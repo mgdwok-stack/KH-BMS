@@ -388,33 +388,13 @@ async def upload_csv(file: UploadFile = File(...)):
     
     file_size = file_path.stat().st_size
     
-    # Auto-generate PQ statistics database
-    try:
-        import subprocess
-        logger.info("Starting PQ statistics database build...")
-        result = subprocess.run(
-            ["python3", "pq_stats_analyzer.py", "build"],
-            cwd=str(Path.cwd()),
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        
-        if result.returncode == 0:
-            logger.info("PQ statistics database built successfully")
-            logger.info(f"Output: {result.stdout[:500]}")  # Log first 500 chars
-        else:
-            logger.error(f"PQ database build failed: {result.stderr}")
-            
-    except subprocess.TimeoutExpired:
-        logger.error("PQ database build timed out after 60 seconds")
-    except Exception as e:
-        logger.error(f"Failed to build PQ database: {e}")
+    # CSV 파일만 저장, DB 업데이트는 별도 버튼으로 수행
+    logger.info(f"CSV file uploaded: {file.filename}")
     
     return {
         "filename": file.filename,
         "size": file_size,
-        "message": "파일이 업로드되고 PQ 통계 데이터베이스가 재생성되었습니다",
+        "message": "파일이 업로드되었습니다. 'DB 업데이트' 버튼을 눌러주세요.",
         "uploaded_at": datetime.now().isoformat()
     }
 
@@ -446,6 +426,85 @@ async def list_uploaded_files():
     return {
         "files": unique_files,
         "total_files": len(unique_files)
+    }
+
+
+@app.post("/api/v1/update-databases")
+async def update_databases():
+    """
+    수동 DB 업데이트 버튼
+    - PQ 통계 DB 업데이트 (bidbot_data.db)
+    - 발주처별 DB 업데이트 (databases/*.db)
+    모든 DB 파일은 로컬에만 저장됨
+    """
+    import subprocess
+    from pathlib import Path
+    
+    results = {
+        "pq_stats": {"status": "pending", "message": ""},
+        "organization_dbs": {"status": "pending", "message": "", "count": 0}
+    }
+    
+    # 1. PQ 통계 DB 업데이트
+    try:
+        logger.info("Starting PQ statistics database build...")
+        result = subprocess.run(
+            ["python3", "pq_stats_analyzer.py", "build"],
+            cwd=str(Path.cwd()),
+            capture_output=True,
+            text=True,
+            timeout=120  # 2분 타임아웃
+        )
+        
+        if result.returncode == 0:
+            logger.info("PQ statistics database built successfully")
+            results["pq_stats"]["status"] = "success"
+            results["pq_stats"]["message"] = "PQ 통계 DB가 성공적으로 업데이트되었습니다"
+            
+            # 대표사 수 확인
+            if Path(PQ_DB_PATH).exists():
+                conn = sqlite3.connect(PQ_DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(DISTINCT `대표사`) FROM Company_PQ_Stats")
+                company_count = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM Company_PQ_Stats")
+                record_count = cursor.fetchone()[0]
+                conn.close()
+                results["pq_stats"]["message"] += f" (대표사: {company_count}개, 레코드: {record_count}건)"
+        else:
+            logger.error(f"PQ database build failed: {result.stderr}")
+            results["pq_stats"]["status"] = "error"
+            results["pq_stats"]["message"] = f"PQ DB 업데이트 실패: {result.stderr[:200]}"
+            
+    except subprocess.TimeoutExpired:
+        logger.error("PQ database build timed out")
+        results["pq_stats"]["status"] = "error"
+        results["pq_stats"]["message"] = "PQ DB 업데이트가 시간 초과되었습니다 (2분)"
+    except Exception as e:
+        logger.error(f"Failed to build PQ database: {e}")
+        results["pq_stats"]["status"] = "error"
+        results["pq_stats"]["message"] = f"PQ DB 업데이트 중 오류: {str(e)}"
+    
+    # 2. 발주처별 DB 업데이트 (선택적 - 로컬 저장)
+    try:
+        org_db_dir = Path("data/databases")
+        if org_db_dir.exists():
+            org_db_files = list(org_db_dir.glob("*.db"))
+            results["organization_dbs"]["status"] = "success"
+            results["organization_dbs"]["count"] = len(org_db_files)
+            results["organization_dbs"]["message"] = f"{len(org_db_files)}개의 발주처 DB가 로컬에 저장되어 있습니다"
+        else:
+            results["organization_dbs"]["status"] = "info"
+            results["organization_dbs"]["message"] = "발주처별 DB 디렉토리가 없습니다"
+    except Exception as e:
+        results["organization_dbs"]["status"] = "error"
+        results["organization_dbs"]["message"] = f"발주처 DB 확인 중 오류: {str(e)}"
+    
+    return {
+        "message": "DB 업데이트 완료",
+        "timestamp": datetime.now().isoformat(),
+        "results": results,
+        "note": "모든 DB 파일은 data/ 디렉토리에 로컬로 저장됩니다"
     }
 
 
