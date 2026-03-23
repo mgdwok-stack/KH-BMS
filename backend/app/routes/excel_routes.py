@@ -13,7 +13,7 @@ from datetime import datetime
 from app.services.excel_parser import parse_excel_file
 
 
-router = APIRouter(prefix="/api/v1/excel", tags=["Excel Upload"])
+router = APIRouter(tags=["Excel Upload"])
 
 # Upload directory
 UPLOAD_DIR = Path("/home/user/webapp/data/uploads")

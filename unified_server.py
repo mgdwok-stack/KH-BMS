@@ -217,7 +217,7 @@ async def list_organizations():
 
 
 @app.get("/api/v1/organizations/{org_name}")
-async def get_organization_data(org_name: str, limit: int = 10):
+async def get_organization_data(org_name: str, limit: int = 50):
     """특정 조직의 입찰 데이터"""
     db_path = Path(ORG_DB_DIR) / f"{org_name}.db"
     
@@ -230,17 +230,13 @@ async def get_organization_data(org_name: str, limit: int = 10):
     
     cursor.execute(f"""
         SELECT 
-            pq_no as announcement_no,
-            project_name,
-            organization,
-            base_amount,
-            estimated_price,
-            estimated_rate,
-            company_name,
-            pq_score,
-            bid_amount,
-            predicted_rate,
-            is_winner
+            pq_no as "공고번호",
+            project_name as "사업명",
+            company_name as "업체명",
+            base_amount as "기초금액",
+            estimated_rate as "예가",
+            is_winner as "낙찰여부",
+            announcement_date as "공고일자"
         FROM bid_data
         LIMIT {min(limit, 100)}
     """)
@@ -287,7 +283,7 @@ async def get_pq_stats():
 
 @app.get("/api/v1/pq-companies")
 async def get_pq_companies():
-    """PQ 대표사 목록"""
+    """PQ 대표사 목록 (win_count 포함)"""
     if not Path(PQ_DB_PATH).exists():
         raise HTTPException(status_code=404, detail="PQ 통계 데이터베이스가 없습니다")
     
@@ -298,12 +294,12 @@ async def get_pq_companies():
     cursor.execute("""
         SELECT 
             `대표사` as company_name,
-            COUNT(*) as total_participations,
-            COUNT(CASE WHEN `낙찰여부` = 'O' THEN 1 END) as wins,
+            COUNT(*) as total_participation,
+            COUNT(CASE WHEN `낙찰여부` = 'O' THEN 1 END) as win_count,
             AVG(`투찰률`) as avg_bid_rate
         FROM Company_PQ_Stats
         GROUP BY `대표사`
-        ORDER BY total_participations DESC
+        ORDER BY total_participation DESC
     """)
     
     companies = [dict(row) for row in cursor.fetchall()]
@@ -313,41 +309,64 @@ async def get_pq_companies():
 
 
 @app.get("/api/v1/pq-analysis/{company_name}")
-async def analyze_company_pq(company_name: str, reference_rate: float = 100.0):
-    """특정 대표사의 PQ 순위별 분석"""
+async def analyze_company_pq(company_name: str, threshold: float = 99.9):
+    """특정 대표사의 PQ 순위별 분석 (확률 계산 포함)"""
     if not Path(PQ_DB_PATH).exists():
         raise HTTPException(status_code=404, detail="PQ 통계 데이터베이스가 없습니다")
     
     conn = sqlite3.connect(PQ_DB_PATH)
-    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    # Get company's bidding history by PQ rank
+    # Get total bids count for this company
     cursor.execute("""
-        SELECT 
-            `PQ순위` as pq_rank,
-            COUNT(*) as total_bids,
-            COUNT(CASE WHEN `낙찰여부` = 'O' THEN 1 END) as wins,
-            AVG(`투찰률`) as avg_rate,
-            MIN(`투찰률`) as min_rate,
-            MAX(`투찰률`) as max_rate
-        FROM Company_PQ_Stats
-        WHERE `대표사` = ?
-        GROUP BY `PQ순위`
-        ORDER BY `PQ순위`
+        SELECT COUNT(*) FROM Company_PQ_Stats WHERE `대표사` = ?
     """, (company_name,))
+    total_bids = cursor.fetchone()[0]
     
-    rank_analysis = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    
-    if not rank_analysis:
+    if total_bids == 0:
+        conn.close()
         raise HTTPException(status_code=404, detail=f"'{company_name}' 대표사의 데이터가 없습니다")
     
+    # Get detailed analysis by rank with probability calculations
+    cursor.execute("""
+        SELECT `PQ순위`, `투찰률` FROM Company_PQ_Stats WHERE `대표사` = ?
+    """, (company_name,))
+    all_rows = cursor.fetchall()
+    conn.close()
+    
+    # Group by rank and calculate statistics
+    from collections import defaultdict
+    import statistics
+    
+    rank_data = defaultdict(list)
+    for pq_rank, bid_rate in all_rows:
+        if bid_rate is not None:
+            rank_data[pq_rank].append(bid_rate)
+    
+    rank_stats = {}
+    for rank in sorted(rank_data.keys()):
+        rates = rank_data[rank]
+        above_threshold = sum(1 for r in rates if r >= threshold)
+        below_threshold = sum(1 for r in rates if r < threshold)
+        
+        rank_stats[rank] = {
+            "count": len(rates),
+            "mean": round(statistics.mean(rates), 2) if rates else 0,
+            "median": round(statistics.median(rates), 2) if rates else 0,
+            "std": round(statistics.stdev(rates), 2) if len(rates) > 1 else 0,
+            "min": round(min(rates), 2) if rates else 0,
+            "max": round(max(rates), 2) if rates else 0,
+            "above_threshold_count": above_threshold,
+            "below_threshold_count": below_threshold,
+            "above_threshold_probability": round((above_threshold / len(rates) * 100), 2) if rates else 0,
+            "below_threshold_probability": round((below_threshold / len(rates) * 100), 2) if rates else 0
+        }
+    
     return {
-        "company_name": company_name,
-        "reference_rate": reference_rate,
-        "rank_analysis": rank_analysis,
-        "insights": f"{company_name}의 PQ 순위별 입찰 분석 결과입니다."
+        "company": company_name,
+        "total_bids": total_bids,
+        "threshold": threshold,
+        "rank_stats": rank_stats
     }
 
 
@@ -398,25 +417,28 @@ async def list_uploaded_files():
     """업로드된 CSV 파일 목록"""
     files = []
     
-    for file_path in UPLOAD_DIR.glob("*.CSV"):
-        stat = file_path.stat()
-        files.append({
-            "filename": file_path.name,
-            "size": stat.st_size,
-            "uploaded_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
-        })
+    # Check both uppercase and lowercase extensions
+    for pattern in ["*.CSV", "*.csv"]:
+        for file_path in UPLOAD_DIR.glob(pattern):
+            stat = file_path.stat()
+            files.append({
+                "filename": file_path.name,
+                "size": stat.st_size,
+                "uploaded_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
     
-    for file_path in UPLOAD_DIR.glob("*.csv"):
-        stat = file_path.stat()
-        files.append({
-            "filename": file_path.name,
-            "size": stat.st_size,
-            "uploaded_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
-        })
+    # Remove duplicates (case-insensitive)
+    seen = set()
+    unique_files = []
+    for f in files:
+        key = f['filename'].lower()
+        if key not in seen:
+            seen.add(key)
+            unique_files.append(f)
     
     return {
-        "files": files,
-        "total": len(files)
+        "files": unique_files,
+        "total_files": len(unique_files)
     }
 
 
