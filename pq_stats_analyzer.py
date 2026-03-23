@@ -107,7 +107,11 @@ class PQStatsAnalyzer:
         # 업체명에서 '+' 기준으로 분리하여 첫 번째 업체 추출
         df['대표사'] = df['업체명'].apply(self._extract_lead_company)
         
-        # 3. 컬럼명 정리
+        # 3. 낙찰여부 통일 (O/X → Y/N)
+        if '낙찰여부' in df.columns:
+            df['낙찰여부'] = df['낙찰여부'].apply(self._normalize_win_status)
+        
+        # 4. 컬럼명 정리
         df = df.rename(columns={
             'PQ공고 NO.': '공고번호',
             '추정예가': '투찰률'
@@ -137,6 +141,28 @@ class PQStatsAnalyzer:
         
         # 첫 번째 부분 반환 (공백 제거)
         return parts[0].strip()
+    
+    @staticmethod
+    def _normalize_win_status(status) -> str:
+        """
+        낙찰여부 통일 (O/X → Y/N)
+        
+        Args:
+            status: 낙찰여부 ('O', 'X', 'Y', 'N', None 등)
+            
+        Returns:
+            'Y' (낙찰) 또는 'N' (미낙찰)
+        """
+        if pd.isna(status):
+            return 'N'
+        
+        status_str = str(status).strip().upper()
+        
+        # O → Y, X → N
+        if status_str in ['O', 'Y', '1', 'TRUE', '낙찰']:
+            return 'Y'
+        else:
+            return 'N'
     
     def insert_to_database(self, df: pd.DataFrame, clear_existing: bool = False):
         """

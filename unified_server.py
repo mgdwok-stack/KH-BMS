@@ -264,7 +264,7 @@ async def get_pq_stats():
         SELECT 
             `PQ순위` as pq_rank,
             COUNT(*) as total_bids,
-            AVG(CASE WHEN `낙찰여부` = 'O' THEN `투찰률` ELSE NULL END) as avg_winning_rate,
+            AVG(CASE WHEN `낙찰여부` IN ('Y', 'O') THEN `투찰률` ELSE NULL END) as avg_winning_rate,
             MIN(`투찰률`) as min_rate,
             MAX(`투찰률`) as max_rate
         FROM Company_PQ_Stats
@@ -295,7 +295,7 @@ async def get_pq_companies():
         SELECT 
             `대표사` as company_name,
             COUNT(*) as total_participation,
-            COUNT(CASE WHEN `낙찰여부` = 'O' THEN 1 END) as win_count,
+            COUNT(CASE WHEN `낙찰여부` IN ('Y', 'O') THEN 1 END) as win_count,
             AVG(`투찰률`) as avg_bid_rate
         FROM Company_PQ_Stats
         GROUP BY `대표사`

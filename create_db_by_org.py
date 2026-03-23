@@ -89,6 +89,19 @@ def create_database(org_name: str, output_dir: str = "data/databases"):
     combined_df = pd.concat(all_data, ignore_index=True)
     print(f"\n✓ 총 {len(combined_df)}건의 데이터 수집 완료")
     
+    # 낙찰여부 정규화 (O/X → Y/N)
+    def normalize_win_status(status):
+        if pd.isna(status):
+            return 'N'
+        status_str = str(status).strip().upper()
+        if status_str in ['O', 'Y', '1', 'TRUE', '낙찰']:
+            return 'Y'
+        else:
+            return 'N'
+    
+    combined_df['낙찰여부'] = combined_df['낙찰여부'].apply(normalize_win_status)
+    print(f"✓ 낙찰여부 정규화 완료 (O/X → Y/N)")
+    
     # SQLite DB 생성 및 데이터 저장
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
