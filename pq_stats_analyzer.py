@@ -90,12 +90,14 @@ class PQStatsAnalyzer:
         print(f"\n📄 CSV 파일 읽는 중: {csv_path}")
         
         # CSV 파일 읽기
-        df = pd.read_csv(csv_path, encoding='cp949')
+        df = pd.read_csv(csv_path, encoding='cp949', low_memory=False)
         
         print(f"   - 원본 데이터: {len(df)}건")
         
         # 1. PQ 순위 계산
         # PQ공고 NO.로 그룹화하여 PQ점수 내림차순으로 순위 부여
+        # NaN 값 처리: PQ점수가 없는 행은 제외
+        df = df[df['PQ점수'].notna()]
         df['PQ순위'] = df.groupby('PQ공고 NO.')['PQ점수'].rank(
             method='dense',  # 동점자는 같은 순위
             ascending=False  # 점수가 높을수록 순위가 높음

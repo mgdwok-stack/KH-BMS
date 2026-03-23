@@ -376,7 +376,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.post("/api/v1/upload-csv")
 async def upload_csv(file: UploadFile = File(...)):
-    """CSV 파일 업로드 및 자동 DB 생성"""
+    """CSV 파일 업로드 및 자동 PQ 통계 DB 재생성"""
     if not file.filename.endswith('.CSV') and not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="CSV 파일만 업로드 가능합니다")
     
@@ -388,26 +388,33 @@ async def upload_csv(file: UploadFile = File(...)):
     
     file_size = file_path.stat().st_size
     
-    # Auto-generate databases
+    # Auto-generate PQ statistics database
     try:
         import subprocess
+        logger.info("Starting PQ statistics database build...")
         result = subprocess.run(
-            ["python3", "create_db_by_org.py"],
+            ["python3", "pq_stats_analyzer.py", "build"],
             cwd=str(Path.cwd()),
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=60
         )
-        logger.info(f"DB generation output: {result.stdout}")
-        if result.returncode != 0:
-            logger.error(f"DB generation error: {result.stderr}")
+        
+        if result.returncode == 0:
+            logger.info("PQ statistics database built successfully")
+            logger.info(f"Output: {result.stdout[:500]}")  # Log first 500 chars
+        else:
+            logger.error(f"PQ database build failed: {result.stderr}")
+            
+    except subprocess.TimeoutExpired:
+        logger.error("PQ database build timed out after 60 seconds")
     except Exception as e:
-        logger.error(f"Failed to auto-generate DBs: {e}")
+        logger.error(f"Failed to build PQ database: {e}")
     
     return {
         "filename": file.filename,
         "size": file_size,
-        "message": "파일이 업로드되고 데이터베이스가 생성되었습니다",
+        "message": "파일이 업로드되고 PQ 통계 데이터베이스가 재생성되었습니다",
         "uploaded_at": datetime.now().isoformat()
     }
 

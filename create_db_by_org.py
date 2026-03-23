@@ -52,7 +52,7 @@ def create_database(org_name: str, output_dir: str = "data/databases"):
     
     for csv_file in csv_files:
         try:
-            df = pd.read_csv(csv_file, encoding='cp949')
+            df = pd.read_csv(csv_file, encoding='cp949', low_memory=False)
             
             # 발주처 필터링
             org_data = df[df['발주처'] == org_name]
@@ -204,11 +204,16 @@ def list_all_organizations():
     all_orgs = set()
     for csv_file in csv_files:
         try:
-            df = pd.read_csv(csv_file, encoding='cp949')
-            all_orgs.update(df['발주처'].unique())
+            df = pd.read_csv(csv_file, encoding='cp949', low_memory=False)
+            # NaN 값 제거하고 문자열만 추가
+            orgs = df['발주처'].dropna().astype(str).unique()
+            all_orgs.update([org for org in orgs if org and org != 'nan'])
         except Exception as e:
             print(f"❌ {csv_file} 읽기 실패: {e}")
             continue
+    
+    # NaN과 빈 문자열 제거
+    all_orgs = {org for org in all_orgs if org and str(org) != 'nan'}
     
     return sorted(all_orgs)
 
