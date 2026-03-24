@@ -6,18 +6,21 @@ DNBP, LSTM, Ensemble 모델을 통합하여 사정률 및 투찰금액 예측
 import logging
 from typing import Dict, Optional
 from sqlalchemy.orm import Session
-import numpy as np
 
 from ..models.bid import BidAnnouncement
 from ..models.result import BidResult
 from ..models.prediction import Prediction
-from .dnbp_model import DNBPModel
-from .lstm_model import LSTMModel
-from .ensemble import EnsemblePredictor
-from .trainer import ModelTrainer
 from .data_processor import DataProcessor
 
 logger = logging.getLogger(__name__)
+
+# ML models are loaded lazily when needed
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    logger.warning("NumPy not available. ML predictions will be disabled.")
 
 
 class PredictorService:
@@ -37,20 +40,30 @@ class PredictorService:
         """
         self.db = db
         self.model_dir = model_dir
+        self.ensemble = None
+        self.dnbp_model = None
+        self.lstm_model = None
         
-        # 모델 로드
-        trainer = ModelTrainer(model_save_dir=model_dir)
-        self.dnbp_model, self.lstm_model = trainer.load_trained_models()
-        
-        # 앙상블 예측기
-        if self.dnbp_model:
-            self.ensemble = EnsemblePredictor(
-                dnbp_model=self.dnbp_model,
-                lstm_model=self.lstm_model
-            )
+        # Try to load ML models if available
+        if NUMPY_AVAILABLE:
+            try:
+                from ..ml.trainer import ModelTrainer
+                from ..ml.ensemble import EnsemblePredictor
+                
+                trainer = ModelTrainer(model_save_dir=model_dir)
+                self.dnbp_model, self.lstm_model = trainer.load_trained_models()
+                
+                if self.dnbp_model:
+                    self.ensemble = EnsemblePredictor(
+                        dnbp_model=self.dnbp_model,
+                        lstm_model=self.lstm_model
+                    )
+                else:
+                    logger.warning("DNBP 모델이 없어 예측 서비스를 사용할 수 없습니다.")
+            except Exception as e:
+                logger.warning(f"ML 모델 로드 실패: {e}. 기본 예측 모드로 실행됩니다.")
         else:
-            self.ensemble = None
-            logger.warning("DNBP 모델이 없어 예측 서비스를 사용할 수 없습니다.")
+            logger.warning("NumPy가 없어 ML 예측이 비활성화됩니다.")
         
         # 데이터 프로세서
         self.processor = DataProcessor(db)

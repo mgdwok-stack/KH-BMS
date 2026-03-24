@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>입찰 통합 분석 시스템 - Complete System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: #666;
+        }
+
+        .tab:hover {
+            background: #f8f9fa;
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .filter-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            background: #f8f9fa;
+            border-color: #764ba2;
+        }
+
+        .upload-area.dragover {
+            background: #e9ecef;
+            border-color: #764ba2;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .company-analysis {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .rank-analysis {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .probability-bar {
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .probability-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .bid-item {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .bid-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .excel-grid {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .excel-table {
+            min-width: 800px;
+        }
+
+        .company-col {
+            background: #fff3cd;
+        }
+
+        .highlight {
+            background: #d4edda;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏗️ 입찰 통합 분석 시스템</h1>
+            <p>API 연동 입찰 정보 + 엑셀 분석 + PQ 통계 + 발주처별 예가 분석 통합 시스템</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('tab-overview')">📊 대시보드</button>
+            <button class="tab" onclick="showTab('tab-api-bids')">📢 실시간 입찰공고 (API)</button>
+            <button class="tab" onclick="showTab('tab-api-results')">🏆 낙찰결과 (API)</button>
+            <button class="tab" onclick="showTab('tab-excel')">📑 입찰표 엑셀 분석</button>
+            <button class="tab" onclick="showTab('tab-pq')">🎯 PQ 점수 분석</button>
+            <button class="tab" onclick="showTab('tab-org')">🏢 발주처별 예가 분석</button>
+            <button class="tab" onclick="showTab('tab-csv')">📤 CSV 데이터 업로드</button>
+        </div>
+
+        <!-- Tab: Overview -->
+        <div id="tab-overview" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total-bids">-</div>
+                    <div class="stat-label">총 입찰공고</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total-results">-</div>
+                    <div class="stat-label">낙찰결과</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total-companies">-</div>
+                    <div class="stat-label">등록 업체</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total-orgs">-</div>
+                    <div class="stat-label">발주처</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">🔥 최신 입찰공고 (TOP 5)</h3>
+                <div id="recent-bids"></div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">🏆 최근 낙찰결과 (TOP 5)</h3>
+                <div id="recent-results"></div>
+            </div>
+        </div>
+
+        <!-- Tab: API Bids -->
+        <div id="tab-api-bids" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">📢 실시간 입찰공고 조회 (조달청 API)</h3>
+                
+                <div class="filter-section">
+                    <div class="filter-row">
+                        <div class="form-group">
+                            <label>발주기관</label>
+                            <input type="text" id="filter-instt" placeholder="발주기관명 입력">
+                        </div>
+                        <div class="form-group">
+                            <label>지역</label>
+                            <select id="filter-region">
+                                <option value="">전체</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>업종</label>
+                            <select id="filter-industry">
+                                <option value="">전체</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>기초금액 (최소)</label>
+                            <input type="number" id="filter-min-price" placeholder="예: 100000000">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="loadBidAnnouncements()">🔍 검색</button>
+                    <button class="btn btn-secondary" onclick="refreshFromAPI()">🔄 API에서 새 데이터 가져오기</button>
+                </div>
+
+                <div id="bids-list"></div>
+            </div>
+        </div>
+
+        <!-- Tab: API Results -->
+        <div id="tab-api-results" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">🏆 낙찰결과 조회 (조달청 API)</h3>
+                
+                <div class="filter-section">
+                    <div class="filter-row">
+                        <div class="form-group">
+                            <label>발주기관</label>
+                            <input type="text" id="results-filter-instt" placeholder="발주기관명 입력">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="loadBidResults()">🔍 검색</button>
+                    <button class="btn btn-secondary" onclick="refreshResultsFromAPI()">🔄 API에서 새 데이터 가져오기</button>
+                </div>
+
+                <div id="results-list"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Excel Analysis -->
+        <div id="tab-excel" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">📑 입찰표 엑셀 파일 업로드 및 분석</h3>
+                
+                <div class="upload-area" id="excel-upload-area">
+                    <input type="file" id="excel-file-input" accept=".xls,.xlsx" style="display:none" onchange="uploadExcelFile(this.files[0])">
+                    <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
+                    <p style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">엑셀 파일을 드래그하거나 클릭하여 업로드</p>
+                    <p style="color: #666;">지원 형식: .xls, .xlsx</p>
+                </div>
+            </div>
+
+            <div id="excel-analysis-result" style="display:none;">
+                <div class="section">
+                    <h3 class="section-title">📋 입찰 기본 정보</h3>
+                    <div class="card">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                            <div>
+                                <strong>발주처:</strong> <span id="excel-ordering-agency"></span>
+                            </div>
+                            <div>
+                                <strong>공사명:</strong> <span id="excel-project-name"></span>
+                            </div>
+                            <div>
+                                <strong>기초금액:</strong> <span id="excel-base-price"></span>
+                            </div>
+                            <div>
+                                <strong>추정가격:</strong> <span id="excel-estimated-price"></span>
+                            </div>
+                            <div>
+                                <strong>예가범위:</strong> <span id="excel-price-range"></span>
+                            </div>
+                            <div>
+                                <strong>참여업체:</strong> <span id="excel-company-count"></span>개
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3 class="section-title">🏢 참여업체 정보 및 투찰범위</h3>
+                    <div class="excel-grid">
+                        <table class="excel-table">
+                            <thead>
+                                <tr>
+                                    <th>순위</th>
+                                    <th>업체명</th>
+                                    <th>PQ 점수</th>
+                                    <th>환산점수</th>
+                                    <th>하한투찰율(%)</th>
+                                    <th>상한투찰율(%)</th>
+                                    <th>투찰범위</th>
+                                </tr>
+                            </thead>
+                            <tbody id="excel-companies-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3 class="section-title">📊 예가율별 투찰 시뮬레이션</h3>
+                    <div class="excel-grid">
+                        <table class="excel-table">
+                            <thead id="simulation-thead"></thead>
+                            <tbody id="simulation-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: PQ Analysis -->
+        <div id="tab-pq" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">🎯 PQ 점수 기반 투찰 성향 분석</h3>
+                
+                <div class="form-group">
+                    <label>분석할 업체 선택</label>
+                    <select id="pq-company-select" onchange="analyzePQCompany()">
+                        <option value="">-- 업체를 선택하세요 --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>기준 투찰률 (%)</label>
+                    <input type="number" id="pq-threshold" value="99.9" step="0.1">
+                </div>
+
+                <button class="btn btn-primary" onclick="analyzePQCompany()">📊 분석</button>
+            </div>
+
+            <div id="pq-analysis-result"></div>
+        </div>
+
+        <!-- Tab: Organization Analysis -->
+        <div id="tab-org" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">🏢 발주처별 예가 범위 분석</h3>
+                
+                <div class="stats-grid" id="org-stats"></div>
+
+                <div class="form-group">
+                    <label>발주처 선택</label>
+                    <select id="org-select" onchange="loadOrgData()">
+                        <option value="">-- 발주처를 선택하세요 --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="org-data-result"></div>
+        </div>
+
+        <!-- Tab: CSV Upload -->
+        <div id="tab-csv" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">📤 CSV 파일 업로드</h3>
+                
+                <div class="upload-area" id="csv-upload-area">
+                    <input type="file" id="csv-file-input" accept=".csv,.CSV" style="display:none" onchange="uploadCSVFile(this.files[0])">
+                    <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
+                    <p style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">CSV 파일을 드래그하거나 클릭하여 업로드</p>
+                    <p style="color: #666;">업로드 후 'DB 업데이트' 버튼을 눌러주세요</p>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="updateDatabases()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 15px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        🔄 DB 업데이트 (PQ 분석 + 발주처별 예가)
+                    </button>
+                    <div id="db-update-status" style="margin-top: 15px; padding: 15px; border-radius: 8px; display: none;"></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">📂 업로드된 파일 목록</h3>
+                <div id="uploaded-files-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';  // Same origin
+
+        // Tab switching
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+
+            // Load data when tab is shown
+            if (tabId === 'tab-overview') {
+                loadOverview();
+            } else if (tabId === 'tab-api-bids') {
+                loadBidAnnouncements();
+                loadFilters();
+            } else if (tabId === 'tab-api-results') {
+                loadBidResults();
+            } else if (tabId === 'tab-pq') {
+                loadPQCompanies();
+            } else if (tabId === 'tab-org') {
+                loadOrganizations();
+            } else if (tabId === 'tab-csv') {
+                loadUploadedFiles();
+            }
+        }
+
+        // Load Overview
+        async function loadOverview() {
+            try {
+                // Load statistics
+                const [bidsRes, resultsRes, pqRes, orgRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/v1/bids/?page_size=5`),
+                    fetch(`${API_BASE}/api/v1/bids/results/?page_size=5`),
+                    fetch(`${API_BASE}/api/v1/pq-companies`),
+                    fetch(`${API_BASE}/api/v1/organizations`)
+                ]);
+
+                const bidsData = await bidsRes.json();
+                const resultsData = await resultsRes.json();
+                const pqData = await pqRes.json();
+                const orgData = await orgRes.json();
+
+                document.getElementById('stat-total-bids').textContent = bidsData.total || 0;
+                document.getElementById('stat-total-results').textContent = resultsData.length || 0;
+                document.getElementById('stat-total-companies').textContent = pqData.length || 0;
+                document.getElementById('stat-total-orgs').textContent = orgData.length || 0;
+
+                // Recent bids
+                const recentBidsHtml = bidsData.items.slice(0, 5).map(bid => `
+                    <div class="bid-item">
+                        <strong>${bid.bid_ntce_nm || '공고명 없음'}</strong><br>
+                        <small>${bid.instt_nm || ''} | 기초금액: ${formatPrice(bid.basis_prce)}</small>
+                    </div>
+                `).join('');
+                document.getElementById('recent-bids').innerHTML = recentBidsHtml || '<p>데이터 없음</p>';
+
+                // Recent results
+                const recentResultsHtml = resultsData.slice(0, 5).map(result => `
+                    <div class="bid-item">
+                        <strong>${result.bsnm_bddpr_nm || '업체명 없음'}</strong><br>
+                        <small>${result.instt_nm || ''} | 낙찰가: ${formatPrice(result.sucsfbid_amt)} (${result.sucsfbid_rate || 0}%)</small>
+                    </div>
+                `).join('');
+                document.getElementById('recent-results').innerHTML = recentResultsHtml || '<p>데이터 없음</p>';
+
+            } catch (error) {
+                console.error('Overview load error:', error);
+            }
+        }
+
+        // Load Bid Announcements
+        async function loadBidAnnouncements() {
+            try {
+                const instt = document.getElementById('filter-instt')?.value || '';
+                const region = document.getElementById('filter-region')?.value || '';
+                const industry = document.getElementById('filter-industry')?.value || '';
+                const minPrice = document.getElementById('filter-min-price')?.value || '';
+
+                let url = `${API_BASE}/api/v1/bids/?page_size=50`;
+                if (instt) url += `&instt_nm=${encodeURIComponent(instt)}`;
+                if (region) url += `&rgn_nm=${encodeURIComponent(region)}`;
+                if (industry) url += `&induty_ty_nm=${encodeURIComponent(industry)}`;
+                if (minPrice) url += `&min_basis_price=${minPrice}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                const html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>공고번호</th>
+                                <th>공고명</th>
+                                <th>발주기관</th>
+                                <th>기초금액</th>
+                                <th>입찰마감일</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.items.map(bid => `
+                                <tr>
+                                    <td>${bid.bid_ntce_no || ''}</td>
+                                    <td>${bid.bid_ntce_nm || ''}</td>
+                                    <td>${bid.instt_nm || ''}</td>
+                                    <td>${formatPrice(bid.basis_prce)}</td>
+                                    <td>${formatDate(bid.bid_clsedt)}</td>
+                                    <td>${bid.bid_status === 'announced' ? '공고중' : '마감'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 15px; color: #666;">총 ${data.total}건 중 ${data.items.length}건 표시</p>
+                `;
+
+                document.getElementById('bids-list').innerHTML = html;
+            } catch (error) {
+                console.error('Bids load error:', error);
+                document.getElementById('bids-list').innerHTML = '<div class="alert alert-error">데이터 로드 실패</div>';
+            }
+        }
+
+        // Load Bid Results
+        async function loadBidResults() {
+            try {
+                const instt = document.getElementById('results-filter-instt')?.value || '';
+                let url = `${API_BASE}/api/v1/bids/results/?page_size=50`;
+                if (instt) url += `&instt_nm=${encodeURIComponent(instt)}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                const html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>공고번호</th>
+                                <th>낙찰업체</th>
+                                <th>발주기관</th>
+                                <th>낙찰금액</th>
+                                <th>낙찰률(%)</th>
+                                <th>개찰일</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(result => `
+                                <tr>
+                                    <td>${result.bid_ntce_no || ''}</td>
+                                    <td>${result.bsnm_bddpr_nm || ''}</td>
+                                    <td>${result.instt_nm || ''}</td>
+                                    <td>${formatPrice(result.sucsfbid_amt)}</td>
+                                    <td>${(result.sucsfbid_rate || 0).toFixed(2)}%</td>
+                                    <td>${formatDate(result.opengdt)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 15px; color: #666;">총 ${data.length}건 표시</p>
+                `;
+
+                document.getElementById('results-list').innerHTML = html;
+            } catch (error) {
+                console.error('Results load error:', error);
+                document.getElementById('results-list').innerHTML = '<div class="alert alert-error">데이터 로드 실패</div>';
+            }
+        }
+
+        // Load Filters
+        async function loadFilters() {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/bids/search/filters`);
+                const data = await response.json();
+
+                const regionSelect = document.getElementById('filter-region');
+                regionSelect.innerHTML = '<option value="">전체</option>' + 
+                    data.regions.map(r => `<option value="${r.name}">${r.name} (${r.count})</option>`).join('');
+
+                const industrySelect = document.getElementById('filter-industry');
+                industrySelect.innerHTML = '<option value="">전체</option>' + 
+                    data.industries.map(i => `<option value="${i.name}">${i.name} (${i.count})</option>`).join('');
+            } catch (error) {
+                console.error('Filters load error:', error);
+            }
+        }
+
+        // Refresh from API
+        async function refreshFromAPI() {
+            alert('조달청 API에서 최신 데이터를 가져오는 기능은 백엔드 작업 스케줄러에서 주기적으로 실행됩니다.');
+        }
+
+        async function refreshResultsFromAPI() {
+            alert('조달청 API에서 최신 낙찰결과를 가져오는 기능은 백엔드 작업 스케줄러에서 주기적으로 실행됩니다.');
+        }
+
+        // Excel Upload
+        function setupExcelUpload() {
+            const uploadArea = document.getElementById('excel-upload-area');
+            const fileInput = document.getElementById('excel-file-input');
+
+            uploadArea.onclick = () => fileInput.click();
+
+            uploadArea.ondragover = (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            };
+
+            uploadArea.ondragleave = () => {
+                uploadArea.classList.remove('dragover');
+            };
+
+            uploadArea.ondrop = (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    uploadExcelFile(files[0]);
+                }
+            };
+        }
+
+        async function uploadExcelFile(file) {
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/excel/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayExcelAnalysis(data);
+                } else {
+                    alert('엑셀 파일 분석 실패: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Excel upload error:', error);
+                alert('엑셀 파일 업로드 실패');
+            }
+        }
+
+        function displayExcelAnalysis(data) {
+            const metadata = data.metadata;
+            const companies = data.companies;
+            const matrix = data.simulation_matrix;
+
+            document.getElementById('excel-ordering-agency').textContent = metadata.ordering_agency;
+            document.getElementById('excel-project-name').textContent = metadata.project_name;
+            document.getElementById('excel-base-price').textContent = formatPrice(metadata.base_price);
+            document.getElementById('excel-estimated-price').textContent = formatPrice(metadata.estimated_price);
+            document.getElementById('excel-price-range').textContent = 
+                `${metadata.price_range.min}% ~ ${metadata.price_range.max}%`;
+            document.getElementById('excel-company-count').textContent = companies.length;
+
+            // Companies table
+            const companiesTbody = document.getElementById('excel-companies-tbody');
+            companiesTbody.innerHTML = companies.map((company, idx) => `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>${company.name}</td>
+                    <td>${company.score_100 || '-'}</td>
+                    <td>${company.total_score || '-'}</td>
+                    <td>${company.bid_lower_limit_pct || '-'}%</td>
+                    <td>${company.bid_upper_limit_pct || '-'}%</td>
+                    <td>${company.bid_lower_limit_pct && company.bid_upper_limit_pct ? 
+                        `${company.bid_lower_limit_pct}% ~ ${company.bid_upper_limit_pct}%` : '-'}</td>
+                </tr>
+            `).join('');
+
+            // Simulation matrix
+            if (matrix && matrix.length > 0) {
+                const thead = document.getElementById('simulation-thead');
+                const tbody = document.getElementById('simulation-tbody');
+
+                // Header
+                thead.innerHTML = `
+                    <tr>
+                        <th>예가율(%)</th>
+                        <th>예정가격</th>
+                        ${companies.map(c => `<th class="company-col">${c.name}</th>`).join('')}
+                    </tr>
+                `;
+
+                // Body
+                tbody.innerHTML = matrix.map(row => `
+                    <tr>
+                        <td><strong>${row.rate}%</strong></td>
+                        <td>${formatPrice(row.predicted_price)}</td>
+                        ${companies.map(c => {
+                            const value = row.companies[c.name];
+                            if (value === undefined) return '<td>-</td>';
+                            // Check if it's bid range row (values around 100)
+                            if (row.is_bid_range) {
+                                return `<td class="highlight">${value}%</td>`;
+                            }
+                            return `<td class="company-col">${formatPrice(value)}</td>`;
+                        }).join('')}
+                    </tr>
+                `).join('');
+            }
+
+            document.getElementById('excel-analysis-result').style.display = 'block';
+        }
+
+        // PQ Analysis
+        async function loadPQCompanies() {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/pq-companies`);
+                const data = await response.json();
+
+                const select = document.getElementById('pq-company-select');
+                select.innerHTML = '<option value="">-- 업체를 선택하세요 --</option>' +
+                    data.map(company => `
+                        <option value="${company.company_name}">
+                            ${company.company_name} (${company.total_participation}건, 낙찰 ${company.win_count}건)
+                        </option>
+                    `).join('');
+            } catch (error) {
+                console.error('PQ companies load error:', error);
+            }
+        }
+
+        async function analyzePQCompany() {
+            const companyName = document.getElementById('pq-company-select').value;
+            const threshold = document.getElementById('pq-threshold').value;
+
+            if (!companyName) {
+                alert('업체를 선택하세요');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/pq-analysis/${encodeURIComponent(companyName)}?threshold=${threshold}`);
+                const data = await response.json();
+
+                let html = `
+                    <div class="company-analysis">
+                        <h3>${data.company} 투찰 성향 분석</h3>
+                        <p>총 입찰 참여: ${data.total_bids}건 | 기준 투찰률: ${data.threshold}%</p>
+                `;
+
+                for (const [rank, stats] of Object.entries(data.rank_stats)) {
+                    html += `
+                        <div class="rank-analysis">
+                            <h4>PQ ${rank}위일 때</h4>
+                            <p>참여: ${stats.count}건 | 평균: ${stats.mean}% | 중앙값: ${stats.median}%</p>
+                            <p>범위: ${stats.min}% ~ ${stats.max}% (표준편차: ${stats.std}%)</p>
+                            <div style="margin-top: 10px;">
+                                <strong>${data.threshold}% 이상 투찰 확률</strong>
+                                <div class="probability-bar">
+                                    <div class="probability-fill" style="width: ${stats.above_threshold_probability}%">
+                                        ${stats.above_threshold_probability}%
+                                    </div>
+                                </div>
+                                <p style="margin-top: 5px; font-size: 12px; color: #666;">
+                                    ${data.threshold}% 이상: ${stats.above_threshold_count}건 | 
+                                    ${data.threshold}% 미만: ${stats.below_threshold_count}건
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += '</div>';
+
+                document.getElementById('pq-analysis-result').innerHTML = html;
+            } catch (error) {
+                console.error('PQ analysis error:', error);
+                alert('분석 실패');
+            }
+        }
+
+        // Organization Analysis
+        async function loadOrganizations() {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/organizations`);
+                const data = await response.json();
+
+                const select = document.getElementById('org-select');
+                select.innerHTML = '<option value="">-- 발주처를 선택하세요 --</option>' +
+                    data.map(org => `
+                        <option value="${org.name}">
+                            ${org.name} (${org.total_records}건, ${org.total_projects}개 사업)
+                        </option>
+                    `).join('');
+
+                const statsHtml = data.slice(0, 4).map(org => `
+                    <div class="stat-card">
+                        <div class="stat-value">${org.total_records}</div>
+                        <div class="stat-label">${org.name}</div>
+                    </div>
+                `).join('');
+                document.getElementById('org-stats').innerHTML = statsHtml;
+            } catch (error) {
+                console.error('Organizations load error:', error);
+            }
+        }
+
+        async function loadOrgData() {
+            const orgName = document.getElementById('org-select').value;
+            if (!orgName) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/organizations/${encodeURIComponent(orgName)}?limit=50`);
+                const data = await response.json();
+
+                const html = `
+                    <div class="section">
+                        <h3 class="section-title">${orgName} 입찰 데이터</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>공고번호</th>
+                                    <th>사업명</th>
+                                    <th>업체명</th>
+                                    <th>기초금액</th>
+                                    <th>예가</th>
+                                    <th>낙찰여부</th>
+                                    <th>공고일자</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.map(record => `
+                                    <tr>
+                                        <td>${record.공고번호 || ''}</td>
+                                        <td>${record.사업명 || ''}</td>
+                                        <td>${record.업체명 || ''}</td>
+                                        <td>${record.기초금액 || ''}</td>
+                                        <td>${record.예가 ? record.예가.toFixed(2) + '%' : ''}</td>
+                                        <td>${record.낙찰여부 || ''}</td>
+                                        <td>${record.공고일자 || ''}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                document.getElementById('org-data-result').innerHTML = html;
+            } catch (error) {
+                console.error('Org data load error:', error);
+            }
+        }
+
+        // CSV Upload
+        function setupCSVUpload() {
+            const uploadArea = document.getElementById('csv-upload-area');
+            const fileInput = document.getElementById('csv-file-input');
+
+            uploadArea.onclick = () => fileInput.click();
+
+            uploadArea.ondragover = (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            };
+
+            uploadArea.ondragleave = () => {
+                uploadArea.classList.remove('dragover');
+            };
+
+            uploadArea.ondrop = (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    uploadCSVFile(files[0]);
+                }
+            };
+        }
+
+        async function uploadCSVFile(file) {
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/upload-csv`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('CSV 업로드 성공! "DB 업데이트" 버튼을 눌러 데이터베이스를 갱신하세요.');
+                    loadUploadedFiles();
+                } else {
+                    alert('CSV 업로드 실패: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('CSV upload error:', error);
+                alert('CSV 파일 업로드 실패');
+            }
+        }
+
+        async function updateDatabases() {
+            const statusDiv = document.getElementById('db-update-status');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#fff3cd';
+            statusDiv.style.color = '#856404';
+            statusDiv.innerHTML = '⏳ DB 업데이트 중... (최대 2분 소요)';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/update-databases`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const pqStatus = data.results.pq_stats.status;
+                    const pqMsg = data.results.pq_stats.message;
+                    const orgMsg = data.results.organization_dbs.message;
+
+                    statusDiv.style.background = pqStatus === 'success' ? '#d4edda' : '#f8d7da';
+                    statusDiv.style.color = pqStatus === 'success' ? '#155724' : '#721c24';
+                    statusDiv.innerHTML = `
+                        ✅ DB 업데이트 완료!<br>
+                        📊 PQ 분석: ${pqMsg}<br>
+                        🏢 발주처별: ${orgMsg}<br>
+                        <small>※ 모든 DB는 로컬(data/)에 저장됩니다</small>
+                    `;
+
+                    // Reload PQ companies and organizations
+                    loadPQCompanies();
+                    loadOrganizations();
+                } else {
+                    statusDiv.style.background = '#f8d7da';
+                    statusDiv.style.color = '#721c24';
+                    statusDiv.innerHTML = '❌ DB 업데이트 실패: ' + (data.detail || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('DB update error:', error);
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.color = '#721c24';
+                statusDiv.innerHTML = '❌ DB 업데이트 중 오류 발생';
+            }
+        }
+
+        async function loadUploadedFiles() {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/uploaded-files`);
+                const data = await response.json();
+
+                const html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>파일명</th>
+                                <th>크기</th>
+                                <th>업로드 일시</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.files.map(file => `
+                                <tr>
+                                    <td>${file.filename}</td>
+                                    <td>${(file.size / 1024).toFixed(2)} KB</td>
+                                    <td>${new Date(file.uploaded_at).toLocaleString('ko-KR')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 15px; color: #666;">총 ${data.total_files}개 파일</p>
+                `;
+
+                document.getElementById('uploaded-files-list').innerHTML = html;
+            } catch (error) {
+                console.error('Uploaded files load error:', error);
+            }
+        }
+
+        // Utility functions
+        function formatPrice(price) {
+            if (!price) return '-';
+            return new Intl.NumberFormat('ko-KR').format(price) + '원';
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('ko-KR');
+            } catch {
+                return dateStr;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupExcelUpload();
+            setupCSVUpload();
+            loadOverview();
+        });
+    </script>
+</body>
+</html>

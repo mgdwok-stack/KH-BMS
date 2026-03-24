@@ -77,3 +77,9 @@ data/raw/
 data/processed/
 *.csv
 *.xlsx
+*.backup*
+
+# Backup archives
+*.tar.gz
+*.zip
+*_backup.*

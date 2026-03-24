@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Bid-Bot Clone - Excel Upload & Analysis (v2.0)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 1.1em;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .dropzone {
+            border: 3px dashed #cbd5e0;
+            border-radius: 10px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f7fafc;
+        }
+
+        .dropzone:hover {
+            border-color: #4299e1;
+            background: #edf2f7;
+        }
+
+        .dropzone.dragover {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .dropzone-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .dropzone-text {
+            font-size: 1.2em;
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+
+        .dropzone-hint {
+            font-size: 0.9em;
+            color: #a0aec0;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .data-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .data-section.active {
+            display: block;
+        }
+
+        .data-section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metadata-card {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #4299e1;
+        }
+
+        .metadata-label {
+            font-size: 0.9em;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+
+        .metadata-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        table {
+            width: auto;
+            min-width: 100%;
+            border-collapse: collapse;
+            table-layout: auto;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: right;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+            min-width: 100px;
+        }
+
+        th:first-child, td:first-child {
+            position: sticky;
+            left: 0;
+            background-color: #4299e1;
+            z-index: 11;
+        }
+
+        td:first-child {
+            background-color: white;
+            font-weight: bold;
+        }
+
+        th:nth-child(2), td:nth-child(2) {
+            position: sticky;
+            left: 100px;
+            background-color: #4299e1;
+            z-index: 11;
+        }
+
+        td:nth-child(2) {
+            background-color: white;
+        }
+
+        th {
+            background-color: #4299e1;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover td {
+            background-color: #f7fafc;
+        }
+
+        tr:hover td:first-child,
+        tr:hover td:nth-child(2) {
+            background-color: #edf2f7;
+        }
+
+        .highlight-row {
+            background-color: #fef5e7 !important;
+            font-weight: bold;
+        }
+
+        .highlight-cell {
+            background-color: #48bb78;
+            color: white;
+            font-weight: bold;
+        }
+
+        .closest-bid-highlight {
+            background-color: #ff6b6b !important;
+            color: white !important;
+            font-weight: bold !important;
+            border: 3px solid #ee5a6f !important;
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+        }
+
+        .institution-avg-highlight {
+            background-color: #c3e6cb !important;
+            border: 3px solid #28a745 !important;
+            box-shadow: 0 0 15px rgba(40, 167, 69, 0.6);
+            font-weight: bold !important;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+
+        .spinner {
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #4299e1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background-color: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background-color: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-right: 10px;
+        }
+
+        .btn:hover {
+            background: #3182ce;
+        }
+
+        .btn-secondary {
+            background: #718096;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            background: #4299e1;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 Bid-Bot Clone</h1>
+            <p>엑셀 파일 업로드 & 입찰 시뮬레이션 분석</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h2 style="margin-bottom: 20px;">📤 입찰 분석 엑셀 파일 업로드</h2>
+            <div class="dropzone" id="dropzone">
+                <div class="dropzone-icon">📁</div>
+                <div class="dropzone-text">클릭하거나 파일을 드래그하여 업로드</div>
+                <div class="dropzone-hint">지원 형식: .xlsx, .xls</div>
+            </div>
+            <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+            <div id="uploadStatus"></div>
+        </div>
+
+        <!-- Metadata Section -->
+        <div class="data-section" id="metadataSection">
+            <h2>📋 기본 정보</h2>
+            <div class="metadata-grid" id="metadataGrid"></div>
+        </div>
+
+        <!-- Companies Section -->
+        <div class="data-section" id="companiesSection">
+            <h2>🏢 참여 업체 정보</h2>
+            <div class="stats-container" id="companiesStats"></div>
+            <div class="table-wrapper">
+                <table id="companiesTable">
+                    <thead>
+                        <tr>
+                            <th>순번</th>
+                            <th>업체명</th>
+                            <th>100점만점 점수</th>
+                            <th>투찰범위 하한선(%)</th>
+                            <th>투찰범위 상한선(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="companiesTbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Simulation Matrix Section -->
+        <div class="data-section" id="simulationSection">
+            <h2>📊 예가율별 투찰 시뮬레이션</h2>
+            <div class="stats-container" id="simulationStats"></div>
+            <div style="margin-bottom: 15px;">
+                <button class="btn" onclick="highlightClosestBids()">🔴 투찰 가능 범위 가장 가까운 값 표시</button>
+                <button class="btn" onclick="highlightOptimalRange()">🎯 최적 사정률 구간 표시 (99.5~100.5%)</button>
+                <button class="btn" onclick="highlightInstitutionAvgRate()">🏢 발주처 평균 사정율 표시</button>
+                <button class="btn btn-secondary" onclick="clearHighlights()">🔄 하이라이트 초기화</button>
+            </div>
+            <div id="institutionRateInfo" style="display: none; background: #e8f5e9; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #4caf50;">
+                <strong>🏢 발주처 평균 사정율:</strong> <span id="institutionRateValue"></span>
+            </div>
+            <div class="table-wrapper">
+                <table id="simulationTable">
+                    <thead id="simulationThead"></thead>
+                    <tbody id="simulationTbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://8000-ibl1wp19duywhz06v6jkp-5c13a017.sandbox.novita.ai';
+        let parsedData = null;
+        let institutionAvgRate = null;
+
+        // 발주처별 평균 사정율 매핑 (실제 데이터 또는 시뮬레이션)
+        const INSTITUTION_AVG_RATES = {
+            '제주특별자치도': 99.8,
+            '경상남도': 100.2,
+            '서울특별시': 100.1,
+            '부산광역시': 99.9,
+            '인천광역시': 100.0,
+            '대구광역시': 100.3,
+            '대전광역시': 101.5,
+            '광주광역시': 100.4,
+            '울산광역시': 99.7,
+            '경기도': 100.2,
+            '강원도': 99.9,
+            '충청북도': 100.1,
+            '충청남도': 100.0,
+            '전라북도': 100.2,
+            '전라남도': 99.8,
+            '경상북도': 100.1,
+            '한국도로공사': 99.72,
+            '국토교통부': 100.25,
+            '한국토지주택공사': 100.63,
+            '한국전력공사': 99.88,
+            '한국철도공사': 99.66,
+            '행정안전부': 100.37
+        };
+
+        // Dropzone events
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            const uploadStatus = document.getElementById('uploadStatus');
+            
+            // Validate file type
+            if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                uploadStatus.innerHTML = '<div class="error">❌ .xlsx 또는 .xls 파일만 업로드 가능합니다.</div>';
+                return;
+            }
+
+            // Show loading
+            uploadStatus.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>파일 업로드 중... (${file.name})</p>
+                </div>
+            `;
+
+            // Upload file
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/excel/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const result = await response.json();
+                parsedData = result.data;
+
+                uploadStatus.innerHTML = `<div class="success">✅ ${result.message}</div>`;
+                
+                // Display parsed data
+                displayMetadata(parsedData.metadata);
+                displayCompanies(parsedData.companies);
+                displaySimulationMatrix(parsedData.simulation_matrix);
+
+            } catch (error) {
+                uploadStatus.innerHTML = `<div class="error">❌ 업로드 실패: ${error.message}</div>`;
+                console.error('Upload error:', error);
+            }
+        }
+
+        function displayMetadata(metadata) {
+            const grid = document.getElementById('metadataGrid');
+            
+            // 발주처와 공사명 표시
+            const orderingAgency = metadata.ordering_agency !== 'Unknown' ? metadata.ordering_agency : '정보 없음';
+            const projectName = metadata.project_name !== 'Unknown Project' ? metadata.project_name : '정보 없음';
+            
+            // 발주처별 평균 사정율 조회
+            institutionAvgRate = null;
+            for (const [key, value] of Object.entries(INSTITUTION_AVG_RATES)) {
+                if (orderingAgency.includes(key)) {
+                    institutionAvgRate = value;
+                    break;
+                }
+            }
+            
+            grid.innerHTML = `
+                <div class="metadata-card">
+                    <div class="metadata-label">발주처</div>
+                    <div class="metadata-value">${orderingAgency}</div>
+                </div>
+                <div class="metadata-card">
+                    <div class="metadata-label">공사명</div>
+                    <div class="metadata-value">${projectName}</div>
+                </div>
+                <div class="metadata-card">
+                    <div class="metadata-label">추정가격</div>
+                    <div class="metadata-value">${formatNumber(metadata.estimated_price)}원</div>
+                </div>
+                <div class="metadata-card">
+                    <div class="metadata-label">예가범위</div>
+                    <div class="metadata-value">${metadata.price_range.min}% ~ ${metadata.price_range.max}%</div>
+                </div>
+            `;
+            document.getElementById('metadataSection').classList.add('active');
+        }
+
+        function displayCompanies(companies) {
+            if (!companies || companies.length === 0) return;
+
+            const tbody = document.getElementById('companiesTbody');
+            tbody.innerHTML = companies.map((company, idx) => {
+                // Prefer score_100 over total_score
+                const score = company.score_100 || company.total_score || '-';
+                const lowerPct = company.bid_lower_limit_pct ? company.bid_lower_limit_pct.toFixed(2) + '%' : '-';
+                const upperPct = company.bid_upper_limit_pct ? company.bid_upper_limit_pct.toFixed(2) + '%' : '-';
+                
+                return `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td><strong>${company.name}</strong></td>
+                        <td>${score}</td>
+                        <td>${lowerPct}</td>
+                        <td>${upperPct}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const stats = document.getElementById('companiesStats');
+            stats.innerHTML = `
+                <span class="stat-badge">참여 업체: ${companies.length}개</span>
+            `;
+
+            document.getElementById('companiesSection').classList.add('active');
+        }
+
+        function displaySimulationMatrix(matrix) {
+            if (!matrix || matrix.length === 0) return;
+
+            // Get company names from first row
+            const firstRow = matrix[0];
+            const companyNames = Object.keys(firstRow.companies || {});
+
+            // Create table header with actual company names
+            const thead = document.getElementById('simulationThead');
+            const companyHeaders = companyNames.map((name) => {
+                // Truncate long names for display
+                const displayName = name.length > 15 ? name.substring(0, 13) + '...' : name;
+                return `<th title="${name}">${displayName}</th>`;
+            }).join('');
+            
+            thead.innerHTML = `
+                <tr>
+                    <th style="text-align: center;">예가율</th>
+                    <th style="text-align: right;">예정가격</th>
+                    ${companyHeaders}
+                </tr>
+            `;
+
+            // Create table body with all data
+            const tbody = document.getElementById('simulationTbody');
+            tbody.innerHTML = matrix.map((row, rowIdx) => {
+                const isBidRange = row.is_bid_range || false;
+                
+                const companyBids = companyNames.map((name, companyIdx) => {
+                    const value = row.companies[name];
+                    if (isBidRange) {
+                        // For bid range row, show as percentage
+                        return `<td class="bid-range-cell" data-company-idx="${companyIdx}" data-bid-range="${value}" style="background: #fef5e7; font-weight: 600;">${value ? value.toFixed(2) + '%' : '-'}</td>`;
+                    } else {
+                        // For normal rows, show as currency
+                        return `<td class="company-bid-cell" data-company-idx="${companyIdx}" data-row-idx="${rowIdx}">${formatNumber(value)}</td>`;
+                    }
+                }).join('');
+                
+                const rowStyle = isBidRange ? 'background: #fffacd; border: 2px solid #ffd700; font-weight: bold;' : '';
+                const rateLabel = isBidRange ? `${row.rate}% ⭐` : `${row.rate}%`;
+                
+                return `
+                    <tr data-rate="${row.rate}" style="${rowStyle}">
+                        <td style="text-align: center;"><strong>${rateLabel}</strong></td>
+                        <td style="${isBidRange ? 'font-weight: 600;' : ''}">${isBidRange ? '투찰 가능 범위 (비율)' : formatNumber(row.predicted_price)}</td>
+                        ${companyBids}
+                    </tr>
+                `;
+            }).join('');
+
+            const stats = document.getElementById('simulationStats');
+            stats.innerHTML = `
+                <span class="stat-badge">참여 업체: ${companyNames.length}개</span>
+                <span class="stat-badge">예가율 범위: ${matrix[0].rate}% ~ ${matrix[matrix.length-1].rate}%</span>
+                <span class="stat-badge">시뮬레이션 케이스: ${matrix.length}개</span>
+            `;
+
+            document.getElementById('simulationSection').classList.add('active');
+            
+            // Show instruction message
+            const instructionDiv = document.createElement('div');
+            instructionDiv.style.cssText = 'background: #e6fffa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #38b2ac;';
+            instructionDiv.innerHTML = `
+                <strong>💡 사용 안내:</strong><br>
+                • 표를 <strong>좌우로 스크롤</strong>하여 모든 업체(최대 20개)의 투찰 금액을 확인할 수 있습니다.<br>
+                • 예가율과 예정가격 열은 고정되어 있어 스크롤 시에도 계속 보입니다.<br>
+                • <strong>🔴 투찰 가능 범위 가장 가까운 값 표시</strong>: 각 업체의 투찰 가능 범위(99.9% 행)에 가장 가까운 예가율을 빨간색으로 하이라이트합니다.<br>
+                • <strong>🎯 최적 사정률 구간</strong>: 일반적으로 낙찰 확률이 높은 99.5%~100.5% 구간을 노란색으로 표시합니다.<br>
+                • <strong>🏢 발주처 평균 사정율 표시</strong>: 해당 발주처의 과거 평균 사정율에 가장 가까운 예가율을 초록색으로 하이라이트합니다.<br>
+                <br>
+                <strong>📊 데이터 설명:</strong><br>
+                • <strong>예가율 범위 (103%~99.9%)</strong>: 엑셀 파일의 시뮬레이션 범위 (최고/최저 예가율)<br>
+                • <strong>시뮬레이션 케이스 (${matrix.length}개)</strong>: 총 ${matrix.length - 1}개 정상 시뮬레이션 + 1개 투찰 가능 범위 (99.9% ⭐)<br>
+                • <strong>99.9% ⭐ 행</strong>: 각 업체의 투찰 가능 범위 비율 (예: 100.08% = 예가율 100.1%에 가장 가까움)
+            `;
+            
+            const simulationSection = document.getElementById('simulationSection');
+            const existingInstruction = simulationSection.querySelector('.instruction-message');
+            if (existingInstruction) {
+                existingInstruction.remove();
+            }
+            instructionDiv.className = 'instruction-message';
+            simulationSection.insertBefore(instructionDiv, simulationSection.querySelector('h2').nextSibling);
+        }
+
+        function highlightOptimalRange() {
+            // Highlight rows in the 99.5% ~ 100.5% range (typical optimal range)
+            const rows = document.querySelectorAll('#simulationTbody tr');
+            rows.forEach(row => {
+                const rate = parseFloat(row.dataset.rate);
+                if (rate >= 99.5 && rate <= 100.5) {
+                    row.classList.add('highlight-row');
+                }
+            });
+        }
+
+        function highlightClosestBids() {
+            // Find bid range row (99.9% with is_bid_range flag)
+            const bidRangeCells = document.querySelectorAll('.bid-range-cell');
+            if (bidRangeCells.length === 0) {
+                alert('투찰 가능 범위 데이터가 없습니다.');
+                return;
+            }
+
+            // Clear previous highlights
+            document.querySelectorAll('.closest-bid-highlight').forEach(cell => {
+                cell.classList.remove('closest-bid-highlight');
+            });
+
+            // For each company, find closest bid
+            bidRangeCells.forEach(bidRangeCell => {
+                const companyIdx = parseInt(bidRangeCell.dataset.companyIdx);
+                const bidRangeValue = parseFloat(bidRangeCell.dataset.bidRange);
+                
+                if (!bidRangeValue || isNaN(bidRangeValue)) return;
+
+                // Find all cells for this company (excluding bid range row)
+                const companyCells = document.querySelectorAll(`.company-bid-cell[data-company-idx="${companyIdx}"]`);
+                
+                let closestCell = null;
+                let minDiff = Infinity;
+
+                companyCells.forEach(cell => {
+                    const rowIdx = parseInt(cell.dataset.rowIdx);
+                    const row = document.querySelectorAll('#simulationTbody tr')[rowIdx];
+                    const rate = parseFloat(row.dataset.rate);
+                    
+                    // Skip if not a valid rate
+                    if (isNaN(rate)) return;
+                    
+                    // Calculate difference
+                    const diff = Math.abs(rate - bidRangeValue);
+                    
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestCell = cell;
+                    }
+                });
+
+                // Highlight the closest cell
+                if (closestCell) {
+                    closestCell.classList.add('closest-bid-highlight');
+                }
+            });
+
+            alert('각 업체의 투찰 가능 범위에 가장 가까운 예가율을 하이라이트했습니다!');
+        }
+
+        function clearHighlights() {
+            const rows = document.querySelectorAll('#simulationTbody tr');
+            rows.forEach(row => {
+                row.classList.remove('highlight-row');
+                row.classList.remove('institution-avg-highlight');
+            });
+            
+            // Also clear closest bid highlights
+            document.querySelectorAll('.closest-bid-highlight').forEach(cell => {
+                cell.classList.remove('closest-bid-highlight');
+            });
+            
+            // Hide institution rate info
+            document.getElementById('institutionRateInfo').style.display = 'none';
+        }
+
+        function highlightInstitutionAvgRate() {
+            if (!institutionAvgRate) {
+                alert('발주처 평균 사정율 데이터가 없습니다. \n\n현재 데이터가 있는 발주처: \n• 제주특별자치도 (99.8%)\n• 경상남도 (100.2%)\n• 한국도로공사 (99.72%)\n• 국토교통부 (100.25%)\n• 한국토지주택공사 (100.63%) 등');
+                return;
+            }
+            
+            // Clear previous highlights
+            clearHighlights();
+            
+            // Find closest row to institution avg rate
+            const rows = document.querySelectorAll('#simulationTbody tr');
+            let closestRow = null;
+            let minDiff = Infinity;
+            
+            rows.forEach(row => {
+                const rate = parseFloat(row.dataset.rate);
+                if (isNaN(rate)) return;
+                
+                const diff = Math.abs(rate - institutionAvgRate);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestRow = row;
+                }
+            });
+            
+            if (closestRow) {
+                closestRow.classList.add('institution-avg-highlight');
+                
+                // Show institution rate info
+                document.getElementById('institutionRateValue').innerHTML = `
+                    <strong>${institutionAvgRate}%</strong> (가장 가까운 예가율: ${closestRow.dataset.rate}%, 차이: ${minDiff.toFixed(2)}%포인트)
+                `;
+                document.getElementById('institutionRateInfo').style.display = 'block';
+                
+                // Scroll to highlighted row
+                closestRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                alert(`발주처 평균 사정율 ${institutionAvgRate}%에 가장 가까운 예가율 ${closestRow.dataset.rate}%를 하이라이트했습니다!`);
+            }
+        }
+
+        function formatNumber(num) {
+            if (!num) return '-';
+            return new Intl.NumberFormat('ko-KR').format(Math.round(num));
+        }
+    </script>
+</body>
+</html>
